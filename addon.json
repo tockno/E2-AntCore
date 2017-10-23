@@ -1,0 +1,10 @@
+{
+	"title"		:	"[E2] AntCore",
+	"author_name"		:	"Antagonist",
+	"description"		:	"A useful E2 extension",
+	"type"		:	"tool",
+	"tags"		:	[ "fun", "build" ],
+	"ignore"	:
+	[
+	]
+}
