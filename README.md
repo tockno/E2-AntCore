@@ -54,9 +54,28 @@ Generally all of the functions that are risky for all players to have access to,
 # Base E2 Extension
 These functions are sort-of an extension to already existing E2 functions.
 
-| Function  | Description |
+| Function | Description |
 | ------------- | ------------- |
-| --  | --  |
+| findToArray(maxresults) | Exactly the same as '''findToArray()''', but limits the maximum results. This will decrease server usage and also the e2's usage. Note: Technically it won't linearly decrease usage on the server. Meaning if there's 1000 entities and you limit it to find 100, it won't use 10x less resources (due to how '''find.lua''' works) but it will use significantly less than the normal findToArray(). |
+| findForceExcludeEntities(R) | Modified '''findExcludeEntities(R)''', but doesn't break half way through the array if there is an invalid entity. Instead just ignores this entity and continues. The reason this is useful is if you have an array in your code that is storing manually filtered entities over time, if any of the entities in the array are deleted, any entity contained after that won't be filtered. Note: using R = R:clean() (newer update of AntCore) and using the default E2 function may be more efficient in the long run if the entities are frequently deleted. |
+| findForceIncludeEntities(R) | Same for the above but for '''findIncludeEntities(R)'''. |
+| timerRunning(name) | Returns if a timer is running. |
+| timerTimeLeft(name) | Returns how long (in milliseconds) a timer has left. Negative time if the timer is paused. |
+| pauseTimer(name) | Pauses a timer. |
+| resumeTimer(name) | Resumes a timer. |
+| R:getIndex(obj) | Finds the first occurrence of an object in an array and returns the index. |
+| T:getIndexNum(obj) | Same as the above but for table. |
+| T:getIndex(obj) | Same as the above but the string index. |
+| R:clean() | Returns the array with all invalid objects removed. An example use of this would be if an array contains props, it will remove any props that have been deleted |
+T:clean() | Same for the above but for tables. |
+| R:sort() | Returns an array of this array's keys sorted by the array's values. Must contain all the same type values. | T:sort()
+| Returns an array of string keys sorted by the table's values. Must contain all the same type values. |
+| S:count(subStr) | Returns how many instances of subStr are in S. Better performance than the default method of Count = S:length()-S:replace(subStr,""):length().<br>***Note: mistakes may occur if subStr contains a [https://en.wikipedia.org/wiki/Regular_expression regular expression] pattern, but this isn't likely to happen.*** |
+| S:startsWith(subStr) | Returns if the start of the string is equal to subStr. |
+| S:endsWith(subStr) | * |
+| holoVisible(indexes,players,visible), holoVisibleEnts(holos,players,visible) | An improvement over base E2's holoVisible(index,players,visible). It has proper implementation of '''hologram.lua'''<nowiki/>'s queue system and also has slight nested loop optimisation. Note: the index option is unable to work for global holograms (negative indexes). |
+
+
 
 # Players
 | Function  | Description |
