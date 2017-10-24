@@ -122,6 +122,7 @@ Note: The camera automatically clips inside the map if you set it to a very larg
 | E:podSwapDriver(pod2) | Swaps the drivers of two of your vehicles, works if one is empty. |
 | E:ejectPod(position) | Exactly the same as default E:ejectPod() but it ejects the driver to a specific world position.
 | E:ejectPodTemp()<br>E:ejectPodTemp(position) | Temporarily ejects a player from a vehicle, they can then be returned to it with E:returnDriver() |
+| E:returnDriver() | Returns the player to the vehicle after E:ejectPodTemp() was used on it. |
 
 # Physics
 | Function  | Description |
