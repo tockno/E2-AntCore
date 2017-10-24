@@ -90,8 +90,6 @@ AntCore.bolts = {} -- how many AntCore.bolts a chip has spawned
 AntCore.customAttackers = {}
 AntCore.customInflictors = {}
 
-AntCore.vehicleEjects = {} -- for e:ejectPodTemp()
-
 function AntCore.copy(t)
   local u = {}
   for k, v in pairs(t) do u[k] = v end
@@ -1936,9 +1934,7 @@ end
 
 __e2setcost(5)
 e2function void entity:ejectPod(vector pos)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
-	if not this:IsVehicle() then return end
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
 	local ply = this:GetDriver()
 	if IsValid(ply) then
@@ -1949,37 +1945,35 @@ end
 
 __e2setcost(5)
 e2function void entity:ejectPodTemp(vector pos)
-	if not IsValid(this) or not isOwner(self, this) then return end
-	if not this:IsVehicle() then return end
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
 	local ply = this:GetDriver()
 	if IsValid(ply) then
-		AntCore.vehicleEjects[ply:SteamID()] = this
+		this.tempEjectedDriver = ply
 		ply:ExitVehicle()
 		ply:SetPos(Vector(pos[1],pos[2],pos[3]))
 	end
 end
 
-__e2setcost(5)
+__e2setcost(3)
 e2function void entity:ejectPodTemp()
-	if not IsValid(this) or not isOwner(self, this) then return end
-	if not this:IsVehicle() then return end
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
 	local ply = this:GetDriver()
 	if IsValid(ply) then
-		AntCore.vehicleEjects[ply:SteamID()] = this -- index by steamid to cleanup on discon
+		this.tempEjectedDriver = ply
 		ply:ExitVehicle()
 	end
 end
 
-__e2setcost(5)
-e2function void entity:returnToPod()
-	if not IsValid(this) or not isOwner(self, this) then return end
-	if not this:IsPlayer() then return end
+__e2setcost(3)
+e2function void entity:returnDriver()
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
-	local veh = AntCore.vehicleEjects[this:SteamID()]
-	if IsValid(veh) then
-		this:EnterVehicle(veh)
+	local ply = this.tempEjectedDriver
+	if IsValid(ply) and ply:IsPlayer() then
+		ply:EnterVehicle(this)
+		this.tempEjectedDriver = nil -- dont allow again unless temp ejected again
 	end
 end
 
