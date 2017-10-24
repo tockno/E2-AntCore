@@ -47,9 +47,6 @@ Generally all of the functions that are risky for all players to have access to,
 | frameTime() | Returns the time in seconds it took to render the last frame (server sided) ideal for approximating server lag. |
 | pings() | Returns an array of players pings. This can easily be done manually but this is so chips can do things like pings():min() without having to worry about an ops spike due to iteration. |
 | or(obj1, obj2)<br>or(obj1, obj2, obj3) | Functions the same way as lua's '''or'''. It returns the first of the input objects (left to right) that are valid. It can easily be done in base E2, but this makes code easier to read in some cases. |
-| 
-
-
 
 # Base E2 Extension
 These functions are sort-of an extension to already existing E2 functions.
@@ -75,51 +72,108 @@ T:clean() | Same for the above but for tables. |
 | S:endsWith(subStr) | * |
 | holoVisible(indexes,players,visible), holoVisibleEnts(holos,players,visible) | An improvement over base E2's holoVisible(index,players,visible). It has proper implementation of '''hologram.lua'''<nowiki/>'s queue system and also has slight nested loop optimisation. Note: the index option is unable to work for global holograms (negative indexes). |
 
-
-
 # Players
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| E:plyRenderFX(effect) | Sets a player's render FX (number). |
+| E:plyShadow(enable) | Toggles a player's shadow. |
+| E:hintPlayer(S) | Hints a message to a player, limited to a default hint time and a maximum length of 100 characters on other players, also tells the player who the message was from. Allows longer persisting than normal hint on the chip's owner. |
+| E:printPlayer(S) | Prints a message so a player's chat. The only abuse prevention is that it prints who sent the message to the receiver's console as proof of abuse. |
+| E:plyAlpha(alpha) | Sets a player's alpha. |
+| E:setClipboardText(S) | Sets a player's computer's clipboard text. |
 
 # Offensive
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+|boomCustom(effect,pos,damage,radius)
+| A modified version of Divran's boom function (see [http://www.wiremod.com/forum/expression-2-discussion-help/18657-e2-first-few-extensions.html]). Allows a custom (whitelisted) effect instead of the default explosion. |
+| boom2(pos,damage,radius) | A simpler version of boomCustom that uses a silent explosion effect. |
+| boomDelay() | Returns the cooldown delay between allowed boom functions in ms. Default 100. |
+| E:npcKill() | Kills any killable NPC, bypassing prop protection. This function exists is because damage applying functions can be abused, but NPCs can also be abused. |
+| E:turretShoot(directionV,damage,spread,force,count,tracer) | Emulates a turret entity firing. |
+| turretShootLimit() | Returns the maximum times per second turretShoot() can be used. |
+| shootBolt(pos,vel,damage) | Shoots a crossbow bolt from a position, limited to 8 per sec and max 32 at a time. |
 
 # Weapons
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| E:giveWeapon(weapname) | Gives the entity the weapon, can only be used on self. The weapon must be whitelisted. |
+| E:dropWeapon(weapname) | Drops the weapon, can be picked up by other players. Can only be used on self. |
+| E:removeWeapon(weapname) | The same as dropWeapon except the weapon cannot be picked up (it is deleted). |
+| E:hasWeapon(weapname) | Returns whether the player has a weapon by its name. Can be used on any player. |
+| E:getWeapons() | Returns an array of all of the player's weapon entities, can only be used on self. |
+| E:giveAmmo(ammoname,count) | Gives the player ammo specified by ammo type. The ammo type must be whitelisted. |
+| E:setAmmo(ammoname,count) | Sets the player ammo specified by ammo type. The ammo type must be whitelisted. |
+| E:selectWeaponSlot(slotnumber) | Selects the player's active slot by number. Can only be used on self. |
+| E:selectWeapon(weapname) | Selects the weapon by it's name of the player has it. Can only be used on self. |
+| E:getWeapon(weapname) | Returns the player's weapon by name as an entity. Can only be used on self. |
+| E:setClip1(ammotype,count) | Sets the amount of ammo in the player's clip 1 (the clip that comes up on the player's HUD). Ammo type must be whitelisted and can only be used on self. |
 
 # Vehicles
+Being able to control your own vehicles hugely improves the capability of E2 as it allows you to temporarily manipulate or control another player while they are in your vehicle.
+
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| E:podSetAttacker(inflictor) | Allows you to set a vehicle's weapon (inflictor), whenever this weapon does damage, the attacker will be set to the pod's driver (if there is one). |
+| E:setInflictor(newinflictor) | Allows you to divert an inflictor to be a different entity, ie if you are using some entity E1 in E1:turretShoot, you can make a different entity come up as the inflictor, if you redirect it to a pod's weapon (E:podSetAttacker) then it the attacker will also redirect. |
+| E:podThirdPerson(enabled) | Enables or disables a vehicle's third person mode. Remembers the setting even when there's no driver. |
+| E:podThirdPersonDist(distance) | Sets the third person camera distance of a vehicle. Can be longer than the default scrolling distance.
+Note: The camera automatically clips inside the map if you set it to a very large number. |
+| E:podSwapDriver(pod2) | Swaps the drivers of two of your vehicles, works if one is empty. |
+| E:ejectPod(position) | Exactly the same as default E:ejectPod() but it ejects the driver to a specific world position.
+| E:ejectPodTemp()<br>E:ejectPodTemp(position) | Temporarily ejects a player from a vehicle, they can then be returned to it with E:returnDriver() |
 
 # Physics
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| rope(constraintindex,ent1,offset1,ent2,offset2,rigid) | Ropes an entity to another entity, can be rigid. |
+| elastic(constraintindex,ent1,offset2,ent2,offset2,width,compression,constant,damping) | Elastics an entity to another entity, allows width, compression, spring constant and spring damping. |
+| E:setVelocity(vel) | Sets an entity's velocity. Basically the same as E:applyForce((-E:vel()+vel) * E:mass()) but more optimised.
+Note: directly setting a prop's velocity gives a massive performance boost over applyForce. A chip running on tick using setVelocity uses about 34 ops and 60 μs of cpu time whereas the same chip using applyForce takes about 98 ops and 175 μs. |
+| E:setAngVel(ang) | Sets an entity's angular velocity. |
+| E:addAngVel(ang) | Adds angular velocity onto an entity's. Unlike E:applyAngForce it's immune to moment forces (the model's box size). |
+| E:keepUpright()<br>E:keepUpright(ang,bone,angularLimit) | Creates a keep upright constraint. |
+| E:getGroundEntity() | Returns the entity that an entity is standing on. |
+| E:setPhysScale(N) | Uses a built in Garry's Mod physics scaling system. The system is limited to a number rather than a vector. Clamped between 0.005 and 10 by default to prevent crashes. |
+| E:getPhysScale() | Returns the physics scale. In vector form for possible compatibility. Using the above will make this return the same value as a vector. |
+| E:resetPhysics() | Sets the entity's physics to be whatever model it currently has. |
+| E:makeSpherical(radius,material)<br>E:makeSpherical() | Makes an entity's physics spherical. |
+| E:makeBoxical(min,max)<br>E:makeBoxical() | Makes an entity's physics box-like using an input min and max '''local''' position vectors. Note: this is a very useful function for scaling a prop's physics because the vertices are simple regardless of the prop's. This also has its own min and maximum scale independent of E:setPhysScale's min and max (smaller and larger) due to this. |
+| E:setBuoyancy(ratio) | Sets an entity's buoyancy ratio (0..1) |
+| E:setDrag(drag) | Sets an entity's drag. Note: some entities seem to have their own drag override (ie ww2bomb.mdl) |
+| E:enableDrag(enabled) | Enables or disables an entity's drag. |
+| E:isPenetrating() | Returns whether an entity is penetrating any other entity. |
+| E:isSolid() | Returns whether an entity is solid. |
+| E:getSolid() | Returns the solid type of the entity. See http://wiki.garrysmod.com/page/Enums/SOLID for more info. |
+| E:noCollide(entities) | No-collides the entity with multiple other entities. |
 
 # Wire spawning
 This section exists as a big convenience. A lot of the time a feature is required that can be done by using a wire part, but then a simple E2 becomes a contraption which requires advanced duplicator to save/reproduce. This just removes that inconvenience.
-**Note: A few of these exist in other addons, but here they are compatible with propSpawnUndo(0) in vanilla E2**
+**Note: A few of these exist in other addons, but here they are compatible with propSpawnUndo(0) in vanilla E2, and sbox spawn limits**
 
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| spawnEgp(model,pos,ang) | Spawns an EGP screen |
+| spawnEgpHud(pos,ang) | spawnEgpEmitter(pos,ang) |
+| spawnWireUser(model,range,pos,ang) | Spawns a wire user. |
+| spawnExpression2(model,pos,ang) | Spawns an E2 chip, this function is disabled by default, but requires *remoteuploader* to be enabled to put any code into the chip anyway which is also disabled by default. |
+| spawnTextEntry(model,pos,ang,freeze,disableuse) | * |
+| spawnTextScreen(model,pos,ang,freeze) | * |
+| spawnButton(model,pos,ang,freeze)<br>spawnButton(model,pos,ang,freeze,on,off) | Spawns a wire button entity. If "on" and "off" are omitted, they will be 1 and 0 by default. |
+| spawnWireForcer(model,pos,ang,frozen)<br>spawnWireForcer(model,pos,ang,frozen,range,beam,reaction) | Spawns a wire forcer. |
+| spawnEyePod(pos,ang,frozen)<br>spawnEyePod(pos,ang,frozen,defaultzero,cumulative,min,max) | Spawns a wire eyepod. |
 
 # Addon Integration
 Some functions that allow the use of other existing Garry's Mod addons.
 
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| E:gravityHull(direction, constraints, protrusion, gravity) | Adds a gravity hull to the entity (localized physics |
+| E:ctpEnabled() | Returns whether the player is using CTP (custom third person) |
 
 # Experimental
 These features are not entirely practical or useful, but may be improved or removed in the future.
 
 | Function  | Description |
 | ------------- | ------------- |
-| --  | --  |
+| E = spawnProcessor() | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quote of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. |
