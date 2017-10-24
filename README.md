@@ -131,8 +131,7 @@ Note: The camera automatically clips inside the map if you set it to a very larg
 | ------------- | ------------- |
 | rope(constraintindex,ent1,offset1,ent2,offset2,rigid) | Ropes an entity to another entity, can be rigid. |
 | elastic(constraintindex,ent1,offset2,ent2,offset2,width,compression,constant,damping) | Elastics an entity to another entity, allows width, compression, spring constant and spring damping. |
-| E:setVelocity(vel) | Sets an entity's velocity. Basically the same as E:applyForce((-E:vel()+vel) * E:mass()) but more optimised.
-Note: directly setting a prop's velocity gives a massive performance boost over applyForce. A chip running on tick using setVelocity uses about 34 ops and 60 μs of cpu time whereas the same chip using applyForce takes about 98 ops and 175 μs. |
+| E:setVelocity(vel) | Sets an entity's velocity. Basically the same as E:applyForce((-E:vel()+vel) * E:mass()) but more optimised. Note: directly setting a prop's velocity gives a massive performance boost over applyForce. A chip running on tick using setVelocity uses about 34 ops and 60 μs of cpu time whereas the same chip using applyForce takes about 98 ops and 175 μs. |
 | E:setAngVel(ang) | Sets an entity's angular velocity. |
 | E:addAngVel(ang) | Adds angular velocity onto an entity's. Unlike E:applyAngForce it's immune to moment forces (the model's box size). |
 | E:keepUpright()<br>E:keepUpright(ang,bone,angularLimit) | Creates a keep upright constraint. |
