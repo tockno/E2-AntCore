@@ -16,6 +16,8 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 * Disabled scale (phys and cosmetic model) on ragdolls
 * Added gravity hull support (requires gravity hull addon)
 * Added veh:ejectPodTemp(..) and veh:returnDriver()
+* Added spawnProcessor() (EXPERIMENTAL)
+* Added processorCount()
 * Added e:ctpEnabled()
 
 # Abuse Prevention / Optimisation
@@ -178,3 +180,4 @@ These features are not entirely practical or useful, but may be improved or remo
 | Function  | Description |
 | ------------- | ------------- |
 | E = spawnProcessor() | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quote of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. |
+| processorCount() | Returns the amount of active processors that this chip has. |
