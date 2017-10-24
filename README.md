@@ -15,7 +15,7 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 * Fixed inflictor nil error in damage event (problem in other addons causes errors here)
 * Disabled scale (phys and cosmetic model) on ragdolls
 * Added gravity hull support (requires gravity hull addon)
-* Added veh:ejectPodTemp(..) and ply:returnToPod()
+* Added veh:ejectPodTemp(..) and veh:returnDriver()
 * Added e:ctpEnabled()
 
 # Abuse Prevention / Optimisation
