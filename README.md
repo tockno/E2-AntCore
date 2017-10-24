@@ -10,7 +10,7 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 
 # Recent Changes
 
-some recent changes (not only the latest changes):
+**some recent changes (not only the latest changes):**
 * Changed RT cam spawn limit to be same as normal cameras, normally RT cams have no limit but i think this is nicer
 * Fixed inflictor nil error in damage event (problem in other addons causes errors here)
 * Disabled scale (phys and cosmetic model) on ragdolls
@@ -19,23 +19,88 @@ some recent changes (not only the latest changes):
 * Added e:ctpEnabled()
 
 # Abuse Prevention / Optimisation
-* incomplete
+Generally all of the functions that are risky for all players to have access to, have some kind of limitation or abuse prevention. All of these have console commands to be invidually disabled or configured. Also, many of the functions offer server/chip performance improvements over base E2 functions. An example is E:setVelocity, the function is much simpler, uses much less server CPU and therefore requires much less E2 OPS to use.
+
 # Functions
 
 # General
+| Function  | Description |
+| ------------- | ------------- |
+| E:aimedAt() | Returns whether or not an entity is being aimed at by a player. |
+| aimedAt(entities) | Returns whether any of the entities are being aimed at by a player. Entities must be indexed by E:id(), example: R[Ent:id(),entity] = Ent. This unusual method allows massive arrays to be used without lagging the server. |
+| E:aimingAt() | Returns an array of players aiming at an entity. |
+| aimingAt(entities) | Returns an array of players aiming at any of the entities. Must have the same indexing convention as aimedAt(R). |
+| E:WeapSetMaterial(mat) | Sets a weapon's material. |
+| E:setModel(model) | -- |
+| E:setModelScale(scale)<br>E:setModelScale(scale,time) | Sets an entity's model's visual scale (number). It also has a time parameter (in seconds) to linearly animate the scale change. This works on holograms and is ideal for scaling animation (linear), if the scale is a single number. |
+| E:editModel(scale,angle) | Adjusts a model relative to an entity's physical entity. |
+| E:setModelScale(scale) | Same as the above but only for the scale. |
+| E:setModelAngle(angle) | Same as the above for the angle. |
+| E:getModelScale() | Returns a vector of the custom scale (works with the single number scale). |
+| E:getModelAngle() | Returns the modified angle of an entity. |
+| findClosestCentered(pos,dir) | Finds the center prop based on a view angle, runs exactly the same as findClosest(pos) but for a direction. |
+| runOnEntSpawn(enable) | Makes the chip execute when an entity is created. |
+| runOnEntSpawn(type,enable) | Makes the chip execute when a specific entity type is created. |
+| runOnEntRemove(enable) | runOnEntRemove(type,enable) |
+| runOnEntRemove(ent,enable) | Makes the chip execute if a specific entity is removed. |
+| runOnEntRemove(entities,enable) | Same as above for multiple entities. |
+| frameTime() | Returns the time in seconds it took to render the last frame (server sided) ideal for approximating server lag. |
+| pings() | Returns an array of players pings. This can easily be done manually but this is so chips can do things like pings():min() without having to worry about an ops spike due to iteration. |
+| or(obj1, obj2)<br>or(obj1, obj2, obj3) | Functions the same way as lua's '''or'''. It returns the first of the input objects (left to right) that are valid. It can easily be done in base E2, but this makes code easier to read in some cases. |
+| 
+
+
 
 # Base E2 Extension
+These functions are sort-of an extension to already existing E2 functions.
+
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
 
 # Players
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
 
 # Offensive
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
 
 # Weapons
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
 
 # Vehicles
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
 
 # Physics
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
 
 # Wire spawning
 This section exists as a big convenience. A lot of the time a feature is required that can be done by using a wire part, but then a simple E2 becomes a contraption which requires advanced duplicator to save/reproduce. This just removes that inconvenience.
+**Note: A few of these exist in other addons, but here they are compatible with propSpawnUndo(0) in vanilla E2**
 
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
+
+# Addon Integration
+Some functions that allow the use of other existing Garry's Mod addons.
+
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
+
+# Experimental
+These features are not entirely practical or useful, but may be improved or removed in the future.
+
+| Function  | Description |
+| ------------- | ------------- |
+| --  | --  |
