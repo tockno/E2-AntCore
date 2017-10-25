@@ -166,11 +166,12 @@ This section exists as a big convenience. A lot of the time a feature is require
 | spawnEyePod(pos,ang,frozen)<br>spawnEyePod(pos,ang,frozen,defaultzero,cumulative,min,max) | Spawns a wire eyepod. |
 
 # Addon Integration
-Some functions that allow the use of other existing Garry's Mod addons.
+Some functions that allow the use of other existing Garry's Mod addons. If the addons aren't installed/enabled on the server then the functions will just do nothing.
 
 | Function  | Description |
 | ------------- | ------------- |
 | E:gravityHull(direction, constraints, protrusion, gravity) | Adds a gravity hull to the entity (localized physics |
+| E:removeHull() | Removes a gravity hull. |
 | E:ctpEnabled() | Returns whether the player is using CTP (custom third person) |
 
 # Experimental
