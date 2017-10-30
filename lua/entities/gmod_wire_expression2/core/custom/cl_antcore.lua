@@ -84,7 +84,7 @@ E2Helper.Descriptions["podThirdPersonDist"] = "Sets a vehicle's third person cam
 E2Helper.Descriptions["podSwapDriver"] = "Swaps the drivers of two vehicles"
 E2Helper.Descriptions["ejectPod"] = "Ejects the driver of a vehicle to a custom position"
 E2Helper.Descriptions["ejectPodTemp"] = "Ejects the driver temporarily, allows ply:returnToPod() which will force them to re-enter it"
-E2Helper.Descriptions["returnToPod"] = "Forces a player to re-enter a vehicle they were temp-ejected from (e:ejectPodTemp(..))"
+E2Helper.Descriptions["returnDriver"] = "Forces a previously ejected player to re-enter a vehicle they were temp-ejected from (e:ejectPodTemp(..))"
 E2Helper.Descriptions["count"] = "The size of an array/table, counts how many strings in a substring"
 E2Helper.Descriptions["startsWith"] = "Returns if a string starts with the substring"
 E2Helper.Descriptions["endsWith"] = "Returns if a string ends with the substring"
@@ -104,6 +104,7 @@ E2Helper.Descriptions["removeHull"] = "Removes a gravity hull (localized physics
 E2Helper.Descriptions["spawnProcessor"] = "Spawns a slave processor E2 which allocates the master its tick quota"
 E2Helper.Descriptions["processorCount"] = "Returns how many slave processors an E2 has"
 E2Helper.Descriptions["ctpEnabled"] = "Returns whether a player has customisable third-person enabled"
+E2Helper.Descriptions["propSpawnASync"] = "Allows more props to be spawned per second, but they cannot become solid until they would've been able to be spawned"
 
 --E2Helper.Descriptions["plySendSpawn"] = "(Admin only) send a non-admin player to spawn"
 

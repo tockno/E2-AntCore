@@ -1,7 +1,7 @@
 //author: Antagonist --I stole half of it, I'm making it for myself smd
 E2Lib.RegisterExtension("AntCore", false, "Misc useful functionality.")
 
---[[version: 22/10/2017
+--[[version: 30/10/2017
 
 	RECENT CHANGES (not specifically unique to this version):
 	
@@ -13,6 +13,10 @@ E2Lib.RegisterExtension("AntCore", false, "Misc useful functionality.")
 	added veh:ejectPodTemp and ply:returnToPod
 	
 	added spawnProcessor() and e:processorCount()
+	
+	added veh:podGetThirdPerson()
+	
+	added propSpawnASync(n)
 ]]
 
 -- to reduce local var count (max 200 in a script)
@@ -90,6 +94,11 @@ AntCore.bolts = {} -- how many AntCore.bolts a chip has spawned
 AntCore.customAttackers = {}
 AntCore.customInflictors = {}
 
+-- max propSpawn per second with propSpawnAsync
+AntCore.propSpawnTimes = {} -- modified propSpawn allow solid times (indexed by player)
+-- this can be really high due to how async spawning works
+AntCore.propspawn_async_maxpersec = CreateConVar("antcore_propspawn_async_maxpersec","60",FCVAR_ARCHIVE)
+
 function AntCore.copy(t)
   local u = {}
   for k, v in pairs(t) do u[k] = v end
@@ -135,28 +144,21 @@ function AntCore.getDelay(id,delayname)
 end
 
 --sets the delay last time to now
-function AntCore.setDelay(id,delayname,length) --length in ms
+function AntCore.setDelay(id, delayname, length) --length in ms
 	AntCore.delays[id][delayname] = SysTime() + length/1000
 end
 
 --gets whether an event can occur this second
-function AntCore.getCanOccur(id,eventname,maxamt)
+function AntCore.getCanOccur(id, eventname, maxamt)
 	if AntCore.occurs[id] == nil then AntCore.occurs[id] = {} end
 	if AntCore.occurs[id][eventname] == nil then AntCore.occurs[id][eventname] = 0 end
 	
 	return AntCore.occurs[id][eventname] < maxamt
 end
 
-function AntCore.setOccur(id,eventname)
+function AntCore.setOccur(id, eventname)
 	AntCore.occurs[id][eventname] = AntCore.occurs[id][eventname] + 1
 end
-
-gameevent.Listen( "player_disconnect" ) -- more reliable
-hook.Add("player_disconnect", "AntCore_playerdisconnect", function(data)
-	-- clean up any leftovers
-	-- networkid = SteamID
-	if AntCore.vehicleEjects[networkid] then AntCore.vehicleEjects[networkid] = nil end -- clean up ejects
-end)
 
 --an improvement on Divran's boom function, effects are whitelisted
 function AntCore.boomCustom(self,effect,pos,damage,radius)
@@ -451,35 +453,36 @@ e2function void entity:giveWeapon(string weapname)
 end
 
 hook.Add("OnEntityCreated","antcore_onentitycreated", function(ent)
-
-	if not IsValid(ent) then return end
-	
-	local enttype = ent:GetClass()
-	AntCore.runByEntSpawn = 1
-	AntCore.lastSpawnedEnt = ent
-	for e,_ in pairs(AntCore.entSpawnAlert) do
-		if IsValid(e) then
-			e:Execute()
-		else
-			AntCore.entSpawnAlert[e] = nil
-		end
-	end
-	if AntCore.typeSpawnAlert[enttype] then
-		for e,_ in pairs(AntCore.typeSpawnAlert[enttype]) do
+	timer.Simple(0, function() -- delay for initialization
+		if not IsValid(ent) then return end
+		
+		local enttype = ent:GetClass()
+		AntCore.runByEntSpawn = 1
+		AntCore.lastSpawnedEnt = ent
+		for e,_ in pairs(AntCore.entSpawnAlert) do
 			if IsValid(e) then
 				e:Execute()
 			else
-				AntCore.typeSpawnAlert[enttype][e] = nil
+				AntCore.entSpawnAlert[e] = nil
 			end
 		end
-	end
-	AntCore.runByEntSpawn = 0
-	--AntCore.lastSpawnedEnt = nil may aswell keep it alive
+		if AntCore.typeSpawnAlert[enttype] then
+			for e,_ in pairs(AntCore.typeSpawnAlert[enttype]) do
+				if IsValid(e) then
+					e:Execute()
+				else
+					AntCore.typeSpawnAlert[enttype][e] = nil
+				end
+			end
+		end
+		AntCore.runByEntSpawn = 0
+		--AntCore.lastSpawnedEnt = nil may aswell keep it alive
+	end)
 end)
 
 hook.Remove("EntityRemoved","antcore_entityremoved")
 hook.Add("EntityRemoved","antcore_entityremoved", function(ent)
-
+	-- don't need a delay here
 	if not IsValid(ent) then return end
 	
 	local enttype = ent:GetClass()
@@ -1902,19 +1905,22 @@ end
 
 __e2setcost(3)
 e2function void entity:podThirdPerson(number enable)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
-	if not this:IsVehicle() then return end
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
 	this:SetThirdPersonMode(enable ~= 0)
 end
 
 e2function void entity:podThirdPersonDist(number distance)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
-	if not this:IsVehicle() then return end
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
 	this:SetCameraDistance(distance)
+end
+
+__e2setcost(1)
+e2function void entity:podGetThirdPerson() -- returns if enabled
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
+	
+	if this:GetThirdPersonMode() then return 1 else return 0 end
 end
 
 __e2setcost(5)
@@ -2249,4 +2255,95 @@ __e2setcost(1)
 e2function number entity:ctpEnabled() -- customisable third person addon
 	if !IsValid(this) or !this:IsPlayer() then return end
 	return this:GetInfoNum("ctp_enabled", 0)
+end
+
+-- this is for propSpawnASync(n)
+timer.Simple(0, function() -- timer is required to override PropCore functions
+if PropCore then -- extend some propcore functions if propcore is installed
+	
+	if PropCore.ValidAction then
+	AntCore.defaultValidAction = PropCore.ValidAction
+	function PropCore.ValidAction(self, entity, cmd)
+	
+		if self.data.propSpawnASync and cmd == "spawn" then -- the chip has propSpawnASync enabled
+			return AntCore.getCanOccur(self.player, "propspawn_async", AntCore.propspawn_async_maxpersec:GetInt()) and AntCore.defaultValidAction(self, entity, cmd)
+		end
+		if IsValid(entity) and entity.allowSolidTime and cmd == "solid" then
+			return CurTime() >= entity.allowSolidTime and AntCore.defaultValidAction(self, entity, cmd)
+		end
+		
+		return AntCore.defaultValidAction(self, entity, cmd)
+	end
+	end
+	
+	-- TODO: fix this
+	if PropCore.ValidSpawn then
+	print("antcore: zzzzzzzzzzzzzz")
+	AntCore.defaultValidSpawn = PropCore.ValidSpawn
+	PropCore.ValidSpawn = function(self) return true end -- this function is disabled
+	end
+	
+	if PropCore.PhysManipulate then
+	AntCore.defaultPhysManipulate = PropCore.PhysManipulate
+	function PropCore.PhysManipulate(this, pos, rot, freeze, gravity, notsolid)		
+		if this.allowSolidTime and notsolid != nil then -- entity was spawned with async
+			if this.allowSolidTime <= CurTime() then -- entity is still waiting for allow solid
+				this.asyncSolid = notsolid ~= 0
+				return
+			end
+		end
+		AntCore.defaultPhysManipulate(this, pos, rot, freeze, gravity, notsolid)
+	end
+	end
+	
+	if PropCore.CreateProp then
+	-- modified PropCore.CreateProp, allows infinite props (under max limit) per second
+	-- any that are spawned past the limit are non-solid until they could be spawned
+	AntCore.defaultCreateProp = PropCore.CreateProp
+	function PropCore.CreateProp(self,model,pos,angles,freeze,isVehicle)
+		
+		if !self.data.propSpawnASync and !AntCore.defaultValidSpawn() then -- async disabled chip
+			return nil
+		elseif !AntCore.getCanOccur(self.player,"propspawn_async",AntCore.propspawn_async_maxpersec:GetInt()) then
+			return nil
+		end
+		
+		local prop = AntCore.defaultCreateProp(self,model,pos,angles,freeze,isVehicle)
+		if !IsValid(prop) then return nil end
+		AntCore.setOccur(self.player, "propspawn_async") -- count the spawn occurance in both forms (async and non-async)
+		
+		if self.data.propSpawnASync then
+			-- perform the not-solid-ing
+			if AntCore.propSpawnTimes[self.player] and AntCore.propSpawnTimes[self.player] > CurTime() then -- they have spawned recently
+				prop:SetSolid(SOLID_NONE)
+				prop.allowSolidTime = AntCore.propSpawnTimes[self.player] -- mark when it can be made solid
+				prop.asyncSolid = true -- allows them to change it before the time is up
+				
+				-- round the time DOWN to the nearest second (groups solid events together, as they would have been without async)
+				local dt = math.floor(AntCore.propSpawnTimes[self.player] - CurTime())				
+				timer.Simple(dt, function()
+					if prop.asyncSolid then prop:SetSolid(SOLID_VPHYSICS) end -- automatically make it whatever they set it to
+				end)
+				prop:CallOnRemove("antcore_asyncprop_remove", function()
+					if CurTime() < prop.allowSolidTime then -- prop removed before it could be solid, refund the player their time
+						AntCore.propSpawnTimes[self.player] = AntCore.propSpawnTimes[self.player] - 1/GetConVar("sbox_E2_maxPropsPerSecond"):GetInt()
+					end
+				end)
+			else -- they havent spawned recently (or ever)
+				AntCore.propSpawnTimes[self.player] = CurTime()
+			end
+			-- add onto the "solid" time
+			AntCore.propSpawnTimes[self.player] = AntCore.propSpawnTimes[self.player] + 1/GetConVar("sbox_E2_maxPropsPerSecond"):GetInt()
+		end
+
+		return prop
+	end
+	end
+end
+end)
+
+__e2setcost(1)
+e2function void propSpawnASync(number enable)
+	if enable == 0 then self.data.propSpawnASync = nil return end
+	self.data.propSpawnASync = true
 end
