@@ -19,6 +19,8 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 * Added spawnProcessor() (EXPERIMENTAL)
 * Added processorCount()
 * Added e:ctpEnabled()
+* Added veh:podGetThirdPerson()
+* Added propSpawnASync(n)
 
 # Abuse Prevention / Optimisation
 Generally all of the functions that are risky for all players to have access to, have some kind of limitation or abuse prevention. All of these have console commands to be invidually disabled or configured. Also, many of the functions offer server/chip performance improvements over base E2 functions. An example is E:setVelocity, the function is much simpler, uses much less server CPU and therefore requires much less E2 OPS to use.
@@ -73,6 +75,7 @@ T:clean() | Same for the above but for tables. |
 | S:startsWith(subStr) | Returns if the start of the string is equal to subStr. |
 | S:endsWith(subStr) | * |
 | holoVisible(indexes,players,visible), holoVisibleEnts(holos,players,visible) | An improvement over base E2's holoVisible(index,players,visible). It has proper implementation of '''hologram.lua'''<nowiki/>'s queue system and also has slight nested loop optimisation. Note: the index option is unable to work for global holograms (negative indexes). |
+| propSpawnASync(n) | Allows you to spawn more props per second, but they can't become solid until they would've been able to be spawned. |
 
 # Players
 | Function  | Description |
@@ -119,8 +122,8 @@ Being able to control your own vehicles hugely improves the capability of E2 as 
 | E:podSetAttacker(inflictor) | Allows you to set a vehicle's weapon (inflictor), whenever this weapon does damage, the attacker will be set to the pod's driver (if there is one). |
 | E:setInflictor(newinflictor) | Allows you to divert an inflictor to be a different entity, ie if you are using some entity E1 in E1:turretShoot, you can make a different entity come up as the inflictor, if you redirect it to a pod's weapon (E:podSetAttacker) then it the attacker will also redirect. |
 | E:podThirdPerson(enabled) | Enables or disables a vehicle's third person mode. Remembers the setting even when there's no driver. |
-| E:podThirdPersonDist(distance) | Sets the third person camera distance of a vehicle. Can be longer than the default scrolling distance.
-Note: The camera automatically clips inside the map if you set it to a very large number. |
+| E:podThirdPersonDist(distance) | Sets the third person camera distance of a vehicle. Can be longer than the default scrolling distance. **Note: The camera automatically clips inside the map if you set it to a very large number.** |
+| E:podGetThirdPerson() | Returns whether the vehicle is in third person mode. |
 | E:podSwapDriver(pod2) | Swaps the drivers of two of your vehicles, works if one is empty. |
 | E:ejectPod(position) | Exactly the same as default E:ejectPod() but it ejects the driver to a specific world position.
 | E:ejectPodTemp()<br>E:ejectPodTemp(position) | Temporarily ejects a player from a vehicle, they can then be returned to it with E:returnDriver() |
