@@ -45,7 +45,7 @@ Server sided console variables for settings.
 | "antcore_hintPlayer_persist_max" | Changes the maximum time a hint can persist on another player. | 7 |
 | "antcore_hintPlayer_persecond_self" | Changes the maximum times hintPlayer can be used per second on yourself. | 20 |
 | "antcore_hintPlayer_persist_max_self" | Changes the maximum time a hint can persist on yourself. | 60 |
-| "antcore_printPlayer_persecond" | Changes the max amount of times printPlayer can be used per second. | 10,FCVAR_ARCHIVE)
+| "antcore_printPlayer_persecond" | Changes the max amount of times printPlayer can be used per second. | 10)
 | "antcore_weapons_enabled" |  | 2 |
 | "antcore_weapons_remove_any" |  | 1 |
 | "antcore_wirespawn_enabled" |  | 1 |
@@ -56,8 +56,8 @@ Server sided console variables for settings.
 | "antcore_combine_persecond" |  | 1 |
 | "antcore_dropweapon_persecond" |  | 5 |
 | "antcore_processor_max" |  | 8 |
+| "antcore_propspawn_async_enabled" | Enables/disables propSpawnASync | 1 |
 | "antcore_propspawn_async_maxpersec" |  | 60 |
-| "antcore_propspawn_async_enabled" |  | 1 |
 
 
 # Functions
