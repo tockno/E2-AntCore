@@ -28,6 +28,7 @@ Generally all of the functions that are risky for all players to have access to,
 
 # Console Commands
 Server sided console variables for settings.
+
 | Command  | Description | Default |
 | ------------- | ------------- | ------------- |
 | "antcore_turretShoot_enabled" | Enables/disables turretShoot | 1 |
