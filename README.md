@@ -25,6 +25,40 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 # Abuse Prevention / Optimisation
 Generally all of the functions that are risky for all players to have access to, have some kind of limitation or abuse prevention. All of these have console commands to be invidually disabled or configured. Also, many of the functions offer server/chip performance improvements over base E2 functions. An example is E:setVelocity, the function is much simpler, uses much less server CPU and therefore requires much less E2 OPS to use.
 
+
+# Console Commands
+Server sided console variables for settings.
+| Command  | Description | Default |
+| ------------- | ------------- | ------------- |
+| "antcore_turretShoot_enabled" | Enables/disables turretShoot | 1 |
+| "antcore_turretShoot_persecond" | Changes the maximum times per second turretShoot can be used. | 10 |
+| "antcore_turretShoot_damage_max" | Changes the maximum damage turretShoot can do. | 110000000 |
+| "antcore_turretShoot_spread_max" | Changes the maximum spread turretShoot can have. | 2 |
+| "antcore_turretShoot_count_max" | Changes the maximum bullet count turretShoot can have. | 20 |
+| "antcore_boom_enabled" | Enables/disables boom functions. | 1 |
+| "antcore_boom_delay" | Changes the boom cooldown. | 100 |
+| "antcore_boom_damage_max" | Changes the maximum amount of damage that boom functions can do. | 10000 |
+| "antcore_boom_radius_max" | Changes the maximum radius that a boom function can have. | 50000 |
+| "antcore_hintPlayer_enabled" | Enables/disables hintPlayer. | 1 |
+| "antcore_hintPlayer_persecond" | Changes the maximum times hintPlayer can be used per second. | 5 |
+| "antcore_hintPlayer_persist_max" | Changes the maximum time a hint can persist on another player. | 7 |
+| "antcore_hintPlayer_persecond_self" | Changes the maximum times hintPlayer can be used per second on yourself. | 20 |
+| "antcore_hintPlayer_persist_max_self" | Changes the maximum time a hint can persist on yourself. | 60 |
+| "antcore_printPlayer_persecond" | Changes the max amount of times printPlayer can be used per second. | 10,FCVAR_ARCHIVE)
+| "antcore_weapons_enabled" |  | 2 |
+| "antcore_weapons_remove_any" |  | 1 |
+| "antcore_wirespawn_enabled" |  | 1 |
+| "antcore_entities_spawn_persecond" |  | 16 |
+| "antcore_entities_spawn_e2chip" |  | 0 |
+| "antcore_bolt_persecond" |  | 8 |
+| "antcore_bolt_max" |  | 32 |
+| "antcore_combine_persecond" |  | 1 |
+| "antcore_dropweapon_persecond" |  | 5 |
+| "antcore_processor_max" |  | 8 |
+| "antcore_propspawn_async_maxpersec" |  | 60 |
+| "antcore_propspawn_async_enabled" |  | 1 |
+
+
 # Functions
 
 # General
@@ -75,7 +109,7 @@ T:clean() | Same for the above but for tables. |
 | S:startsWith(subStr) | Returns if the start of the string is equal to subStr. |
 | S:endsWith(subStr) | * |
 | holoVisible(indexes,players,visible), holoVisibleEnts(holos,players,visible) | An improvement over base E2's holoVisible(index,players,visible). It has proper implementation of '''hologram.lua'''<nowiki/>'s queue system and also has slight nested loop optimisation. Note: the index option is unable to work for global holograms (negative indexes). |
-| propSpawnASync(n) | Allows you to spawn more props per second, but they can't become solid until they would've been able to be spawned. |
+| propSpawnASync(n) | Allows you to spawn more props per second, but they can't become solid until they would've been able to be spawned. Requires PropCore to be installed and enabled. By default, allows a max of 60 (non-solid) props to be spawned per second, any more than this can cause problems. Conforms to PropCore's settings for max solid per second. |
 
 # Players
 | Function  | Description |
