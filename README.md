@@ -31,6 +31,8 @@ Server sided console variables for settings.
 | Command  | Description | Default |
 | ------------- | ------------- | ------------- |
 | "antcore_turretShoot_enabled" | Enables/disables turretShoot | 1 |
+
+
 | "antcore_turretShoot_persecond" | Changes the maximum times per second turretShoot can be used. | 10 |
 | "antcore_turretShoot_damage_max" | Changes the maximum damage turretShoot can do. | 110000000 |
 | "antcore_turretShoot_spread_max" | Changes the maximum spread turretShoot can have. | 2 |
