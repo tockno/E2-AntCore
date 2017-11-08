@@ -21,6 +21,7 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 * Added e:ctpEnabled()
 * Added veh:podGetThirdPerson()
 * Added propSpawnASync(n)
+* Added change(n), change(v), change(a)
 
 # Abuse Prevention / Optimisation
 Generally all of the functions that are risky for all players to have access to, have some kind of limitation or abuse prevention. All of these have console commands to be invidually disabled or configured. Also, many of the functions offer server/chip performance improvements over base E2 functions. An example is E:setVelocity, the function is much simpler, uses much less server CPU and therefore requires much less E2 OPS to use.
@@ -111,6 +112,7 @@ T:clean() | Same for the above but for tables. |
 | S:endsWith(subStr) | * |
 | holoVisible(indexes,players,visible), holoVisibleEnts(holos,players,visible) | An improvement over base E2's holoVisible(index,players,visible). It has proper implementation of '''hologram.lua'''<nowiki/>'s queue system and also has slight nested loop optimisation. Note: the index option is unable to work for global holograms (negative indexes). |
 | propSpawnASync(n) | Allows you to spawn more props per second, but they can't become solid until they would've been able to be spawned. Requires PropCore to be installed and enabled. By default, allows a max of 60 (non-solid) props to be spawned per second, any more than this can cause problems. Conforms to PropCore's settings for max solid per second. |
+| change(n/a/v) | Works like a combination between $Val and changed(Val). Returns the change in a value since the last execution, but works without it being a persisted variable. |
 
 # Players
 | Function  | Description |
