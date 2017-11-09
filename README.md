@@ -105,8 +105,8 @@ These functions are sort-of an extension to already existing E2 functions.
 | T:getIndex(obj) | Same as the above but the string index. |
 | R:clean() | Returns the array with all invalid objects removed. An example use of this would be if an array contains props, it will remove any props that have been deleted |
 T:clean() | Same for the above but for tables. |
-| R:sort() | Returns an array of this array's keys sorted by the array's values. Must contain all the same type values. | T:sort()
-| Returns an array of string keys sorted by the table's values. Must contain all the same type values. |
+| R:sort() | Returns an array of this array's keys sorted by the array's values. Must contain all the same type values. |
+| T:sort() | Returns an array of string keys sorted by the table's values. Must contain all the same type values. |
 | S:count(subStr) | Returns how many instances of subStr are in S. Better performance than the default method of Count = S:length()-S:replace(subStr,""):length().<br>***Note: mistakes may occur if subStr contains a [https://en.wikipedia.org/wiki/Regular_expression regular expression] pattern, but this isn't likely to happen.*** |
 | S:startsWith(subStr) | Returns if the start of the string is equal to subStr. |
 | S:endsWith(subStr) | * |
@@ -127,14 +127,18 @@ T:clean() | Same for the above but for tables. |
 # Offensive
 | Function  | Description |
 | ------------- | ------------- |
-|boomCustom(effect,pos,damage,radius)
-| A modified version of Divran's boom function (see [http://www.wiremod.com/forum/expression-2-discussion-help/18657-e2-first-few-extensions.html]). Allows a custom (whitelisted) effect instead of the default explosion. |
+| boomCustom(effect,pos,damage,radius) | A modified version of Divran's boom function (see [http://www.wiremod.com/forum/expression-2-discussion-help/18657-e2-first-few-extensions.html]). Allows a custom (whitelisted) effect instead of the default explosion. |
 | boom2(pos,damage,radius) | A simpler version of boomCustom that uses a silent explosion effect. |
 | boomDelay() | Returns the cooldown delay between allowed boom functions in ms. Default 100. |
 | E:npcKill() | Kills any killable NPC, bypassing prop protection. This function exists is because damage applying functions can be abused, but NPCs can also be abused. |
 | E:turretShoot(directionV,damage,spread,force,count,tracer) | Emulates a turret entity firing. |
 | turretShootLimit() | Returns the maximum times per second turretShoot() can be used. |
 | shootBolt(pos,vel,damage) | Shoots a crossbow bolt from a position, limited to 8 per sec and max 32 at a time. |
+
+Currently whitelists can't be modified (apart from modifying the lua manually) but I might add it if I can be bothered.
+Boom effects whitelist: "explosion", "helicoptermegabomb", "bloodimpact", "glassimpact", "striderblood", "airboatgunimpact", "cball_explode", "manhacksparks", "antliongib", "stunstickimpact"
+Turret tracer whitelist: "tracer", "ar2tracer", "helicoptertracer", "airboatgunheavytracer", "lasertracer", "tooltracer"
+
 
 # Weapons
 | Function  | Description |
@@ -150,6 +154,10 @@ T:clean() | Same for the above but for tables. |
 | E:selectWeapon(weapname) | Selects the weapon by it's name of the player has it. Can only be used on self. |
 | E:getWeapon(weapname) | Returns the player's weapon by name as an entity. Can only be used on self. |
 | E:setClip1(ammotype,count) | Sets the amount of ammo in the player's clip 1 (the clip that comes up on the player's HUD). Ammo type must be whitelisted and can only be used on self. |
+
+Ammo whitelist: "pistol", "357", "ar2", "xbowbolt", "buckshot"
+Weapon give whitelist: "weapon_pistol", "weapon_crowbar", "weapon_stunstick", "weapon_physcannon", "weapon_shotgun", "weapon_ar2", "weapon_crossbow", "wt_backfiregun", "ragdollroper", "laserpointer", "remotecontroller", "none", "gmod_camera", "weapon_fists"
+Weapon control whitelist: "weapon_pistol", "weapon_crowbar","weapon_stunstick", "weapon_physcannon","weapon_shotgun","weapon_ar2", "weapon_crossbow", "wt_backfiregun", "ragdollroper", "laserpointer", "remotecontroller", "none", "gmod_camera", "weapon_fists", "weapon_rpg", "weapon_smg1", "weapon_slam", "weapon_bugbait","weapon_physgun", "gmod_tool", "weapon_medkit","weapon_frag", "parachuter", "wt_writingpad"
 
 # Vehicles
 Being able to control your own vehicles hugely improves the capability of E2 as it allows you to temporarily manipulate or control another player while they are in your vehicle.
