@@ -137,6 +137,7 @@ T:clean() | Same for the above but for tables. |
 
 Currently whitelists can't be modified (apart from modifying the lua manually) but I might add it if I can be bothered.
 Boom effects whitelist: "explosion", "helicoptermegabomb", "bloodimpact", "glassimpact", "striderblood", "airboatgunimpact", "cball_explode", "manhacksparks", "antliongib", "stunstickimpact"
+
 Turret tracer whitelist: "tracer", "ar2tracer", "helicoptertracer", "airboatgunheavytracer", "lasertracer", "tooltracer"
 
 
@@ -157,6 +158,7 @@ Turret tracer whitelist: "tracer", "ar2tracer", "helicoptertracer", "airboatgunh
 
 Ammo whitelist: "pistol", "357", "ar2", "xbowbolt", "buckshot"
 Weapon give whitelist: "weapon_pistol", "weapon_crowbar", "weapon_stunstick", "weapon_physcannon", "weapon_shotgun", "weapon_ar2", "weapon_crossbow", "wt_backfiregun", "ragdollroper", "laserpointer", "remotecontroller", "none", "gmod_camera", "weapon_fists"
+
 Weapon control whitelist: "weapon_pistol", "weapon_crowbar","weapon_stunstick", "weapon_physcannon","weapon_shotgun","weapon_ar2", "weapon_crossbow", "wt_backfiregun", "ragdollroper", "laserpointer", "remotecontroller", "none", "gmod_camera", "weapon_fists", "weapon_rpg", "weapon_smg1", "weapon_slam", "weapon_bugbait","weapon_physgun", "gmod_tool", "weapon_medkit","weapon_frag", "parachuter", "wt_writingpad"
 
 # Vehicles
