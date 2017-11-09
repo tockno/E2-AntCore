@@ -127,7 +127,7 @@ T:clean() | Same for the above but for tables. |
 # Offensive
 | Function  | Description |
 | ------------- | ------------- |
-| boomCustom(effect,pos,damage,radius) | A modified version of Divran's boom function (see [http://www.wiremod.com/forum/expression-2-discussion-help/18657-e2-first-few-extensions.html]). Allows a custom (whitelisted) effect instead of the default explosion. |
+| boomCustom(effect,pos,damage,radius) | A modified version of Divran's boom function. Allows a custom (whitelisted) effect instead of the default explosion. |
 | boom2(pos,damage,radius) | A simpler version of boomCustom that uses a silent explosion effect. |
 | boomDelay() | Returns the cooldown delay between allowed boom functions in ms. Default 100. |
 | E:npcKill() | Kills any killable NPC, bypassing prop protection. This function exists is because damage applying functions can be abused, but NPCs can also be abused. |
