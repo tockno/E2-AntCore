@@ -227,6 +227,6 @@ These features are not entirely practical or useful, but may be improved or remo
 | ------------- | ------------- |
 | E = spawnProcessor(...) | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quote of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. |
 | processorCount() | Returns the amount of active processors that this chip has. |
-| useProcessor() | Consumes one processor use, this can be used N times per tick where N is equal to processorCount(). An example maximum loop using this would be "while perf() { *code* if (!perf(95)) { useProcessor() } }" |
+| useProcessor() | Consumes one processor use, this can be used N times per tick where N is equal to processorCount(). An example maximum loop using this would be "while perf() { *<code>* if (!perf(95)) { useProcessor() } }" |
 | processorUses() | Returns how many processor uses remaining for this tick. |
 | autoPerf(enable) autoPerf(enable,n) | Makes this chip completely immune to hitting its tick quota from events. If an event such as ds signals, or damage (damage core) would execute the chip beyond its ops quota, then the event will be completely ignored. Note that this also goes for timers, so external events can prevent timers from reoccuring. |
