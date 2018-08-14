@@ -11,7 +11,13 @@ This extension exists to remove limitations on E2 without allowing it to be abus
 # Recent Changes
 
 **some recent changes (not only the latest changes):**
-* Added autoPerf(n)
+* E:setCollisionGroup(S) - entities with a collision group will only collide with other entities with the same group, does not apply constraints or get saved in duplicator
+* E:getCollisionGroup()
+* E:removeCollisionGroup()
+* E:getPhysScale/E:getModelScale return prop resizer (advanced collision resizer addon) values if they exist
+* improved how processors work, removed useProcessor
+* fixed runOnEntRemove running even when the chip is being deleted
+* cleaned up code a bit
 
 
 # Abuse Prevention / Optimisation
@@ -78,6 +84,7 @@ Server sided console variables for settings.
 | frameTime() | Returns the time in seconds it took to render the last frame (server sided) ideal for approximating server lag. |
 | pings() | Returns an array of players pings. This can easily be done manually but this is so chips can do things like pings():min() without having to worry about an ops spike due to iteration. |
 | or(obj1, obj2)<br>or(obj1, obj2, obj3) | Functions the same way as lua's '''or'''. It returns the first of the input objects (left to right) that are valid. It can easily be done in base E2, but this makes code easier to read in some cases. |
+| E:setCollisionGroup(S) E:getCollisionGroup() E:removeCollisionGroup() | Gets/sets the collision group of an entity. Entities with collision groups will only collide with other entities with the same group. |
 
 # Base E2 Extension
 These functions are sort-of an extension to already existing E2 functions.
@@ -220,13 +227,15 @@ Some functions that allow the use of other existing Garry's Mod addons. If the a
 | E:removeHull() | Removes a gravity hull. |
 | E:ctpEnabled() | Returns whether the player is using CTP (custom third person) |
 
+# Special
+| Function  | Description |
+| ------------- | ------------- |
+| E = spawnProcessor(...) | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quota of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. |
+| processorCount() | Returns the amount of active processors that this chip has. |
+
 # Experimental
 These features are not entirely practical or useful, but may be improved or removed in the future.
 
 | Function  | Description |
 | ------------- | ------------- |
-| E = spawnProcessor(...) | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quote of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. |
-| processorCount() | Returns the amount of active processors that this chip has. |
-| useProcessor() | Consumes one processor use, this can be used N times per tick where N is equal to processorCount(). An example maximum loop using this would be "while perf() { *<code>* if (!perf(95)) { useProcessor() } }" |
-| processorUses() | Returns how many processor uses remaining for this tick. |
 | autoPerf(enable) autoPerf(enable,n) | Makes this chip completely immune to hitting its OPS quota (not internally) from events. If an event such as ds signals, or damage (damage core) would execute the chip beyond its ops quota, then the event will be completely ignored. Note that this also goes for timers, so external events can prevent timers from reoccuring. |
