@@ -73,7 +73,7 @@ Server sided console variables for settings.
 | E:editModel(scale,angle) | Adjusts a model relative to an entity's physical entity. |
 | E:setModelScale(scale) | Same as the above but only for the scale. |
 | E:setModelAngle(angle) | Same as the above for the angle. |
-| E:getModelScale() | Returns a vector of the custom scale (works with the single number scale). |
+| E:getModelScale() | Returns a vector of the custom scale (works with the single number scale). Also returns the visual scale that was set by Prop resizer. (https://steamcommunity.com/sharedfiles/filedetails/?id=217376234) |
 | E:getModelAngle() | Returns the modified angle of an entity. |
 | findClosestCentered(pos,dir) | Finds the center prop based on a view angle, runs exactly the same as findClosest(pos) but for a direction. |
 | runOnEntSpawn(enable) | Makes the chip execute when an entity is created. |
@@ -190,7 +190,7 @@ Being able to control your own vehicles hugely improves the capability of E2 as 
 | E:keepUpright()<br>E:keepUpright(ang,bone,angularLimit) | Creates a keep upright constraint. |
 | E:getGroundEntity() | Returns the entity that an entity is standing on. |
 | E:setPhysScale(N) | Uses a built in Garry's Mod physics scaling system. The system is limited to a number rather than a vector. Clamped between 0.005 and 10 by default to prevent crashes. |
-| E:getPhysScale() | Returns the physics scale. In vector form for possible compatibility. Using the above will make this return the same value as a vector. |
+| E:getPhysScale() | Returns the physics scale. In vector form for possible compatibility. Using the above will make this return the same value as a vector. Also returns the physical scale that was set by Prop resizer. (https://steamcommunity.com/sharedfiles/filedetails/?id=217376234) |
 | E:resetPhysics() | Sets the entity's physics to be whatever model it currently has. |
 | E:makeSpherical(radius,material)<br>E:makeSpherical() | Makes an entity's physics spherical. |
 | E:makeBoxical(min,max)<br>E:makeBoxical() | Makes an entity's physics box-like using an input min and max '''local''' position vectors. Note: this is a very useful function for scaling a prop's physics because the vertices are simple regardless of the prop's. This also has its own min and maximum scale independent of E:setPhysScale's min and max (smaller and larger) due to this. |
