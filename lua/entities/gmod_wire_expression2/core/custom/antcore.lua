@@ -1,22 +1,25 @@
 //author: Antagonist --I stole half of it, I'm making it for myself smd
 E2Lib.RegisterExtension("AntCore", false, "Misc useful functionality.")
 
---[[version: 30/10/2017
+--[[
+	version: 13/08/2018
 
 	RECENT CHANGES (not specifically unique to this version):
 	
-	changed RT cam spawn limit to be same as normal cameras - normally RT cams have no limit but i think this is nicer
-	fixed inflictor nil error in damage event (problem in other addons causes errors here)
-	disabled scale (phys and cosmetic model) on ragdolls
-	added gravity hull support (requires gravity hull addon)
+	optimised findClosestCentered
+	fixed propCanCreate
 	
-	added veh:ejectPodTemp and ply:returnToPod
+	E:setCollisionGroup(S)
+	E:getCollisionGroup()
+	E:removeCollisionGroup()
+	E:getPhysScale/E:getModelScale return prop resizer (advanced collision resizer addon) values if they exist
 	
-	added spawnProcessor() and e:processorCount()
+	improved how processors work, removed useProcessor
 	
-	added veh:podGetThirdPerson()
+	fixed runOnEntRemove running even when the chip is being deleted
 	
-	added propSpawnASync(n)
+	bugs/errors:
+	R:clean or findSetResults(R) + findClosest has a util nil error (utils.lua)
 ]]
 
 -- to reduce local var count (max 200 in a script)
@@ -98,6 +101,7 @@ AntCore.customInflictors = {}
 AntCore.propSpawnTimes = {} -- modified propSpawn allow solid times (indexed by player)
 -- this can be really high due to how async spawning works
 AntCore.propspawn_async_maxpersec = CreateConVar("antcore_propspawn_async_maxpersec","60",FCVAR_ARCHIVE)
+AntCore.propspawn_async_enabled = CreateConVar("antcore_propspawn_async_enabled","1",FCVAR_ARCHIVE)
 
 function AntCore.copy(t)
   local u = {}
@@ -298,11 +302,29 @@ e2function void entity:plyShadow(number enable)
 	this:DrawShadow(enable ~= 0)
 end
 
+
+
+AntCore.npcKillInputs = { ["npc_helicopter"] = "SelfDestruct", ["npc_rollermine"] = "InteractivePowerDown", ["npc_combinegunship"] = "SelfDestruct", ["npc_combinedropship"] = "Break", ["npc_turret_floor"] = "SelfDestruct", ["npc_strider"] = "Break" }
+
 --kills any npc, come on if you think this is exploitable it's not, turrets and explosive props can do worse easily
 __e2setcost(2)
 e2function void entity:npcKill()
-	if not IsValid(this) then return end
-	if not this:IsNPC() then return end
+	if not IsValid(this) or !this:IsNPC() then return end
+	
+	-- npc needs to be killed via input
+	if AntCore.npcKillInputs[this:GetClass()] then
+		if this.killedByAntCore then return end -- only allow one call
+		this.killedByAntCore = true
+		this:SetHealth(0) -- give e2s a way to check if its dead
+		if this:GetClass() == "npc_helicopter" then
+			-- need a delay to prevent crash (even 500ms causes crash with helicopter)
+			timer.Simple(1,function() this:Fire(AntCore.npcKillInputs[this:GetClass()]) end)
+		else
+			this:Fire(AntCore.npcKillInputs[this:GetClass()])
+		end
+		return
+	end
+	
 	this:SetHealth(1)
 	local dmginfo = DamageInfo()
 	dmginfo:SetAttacker(game.GetWorld())
@@ -314,9 +336,7 @@ end
 
 --modified "entity:shootTo" (https://steamcommunity.com/sharedfiles/filedetails/?id=168794775)
 function AntCore.turretShoot(ent,self,direction,damage,spread,force,count,tracer)
-	if not IsValid(ent) then return end
-	--if ent:GetOwner() != self.player then return end
-	if not isOwner(self, ent) then return end
+	if not IsValid(ent) or not isOwner(self, ent) then return end
 	
 	if AntCore.turretShoot_enabled:GetFloat() == 0 then return end
     if not self.player:IsAdmin() and AntCore.turretShoot_enabled:GetFloat() == 2 then return end
@@ -452,32 +472,36 @@ e2function void entity:giveWeapon(string weapname)
 	this:Give(weapname)
 end
 
-hook.Add("OnEntityCreated","antcore_onentitycreated", function(ent)
-	timer.Simple(0, function() -- delay for initialization
-		if not IsValid(ent) then return end
-		
-		local enttype = ent:GetClass()
-		AntCore.runByEntSpawn = 1
-		AntCore.lastSpawnedEnt = ent
-		for e,_ in pairs(AntCore.entSpawnAlert) do
+-- create function once for performance
+AntCore.entCreated = function(ent)
+	if not IsValid(ent) then return end
+	
+	local enttype = ent:GetClass()
+	AntCore.runByEntSpawn = 1
+	AntCore.lastSpawnedEnt = ent
+	for e,_ in pairs(AntCore.entSpawnAlert) do
+		if IsValid(e) then
+			e:Execute()
+		else
+			AntCore.entSpawnAlert[e] = nil
+		end
+	end
+	if AntCore.typeSpawnAlert[enttype] then
+		for e,_ in pairs(AntCore.typeSpawnAlert[enttype]) do
 			if IsValid(e) then
 				e:Execute()
 			else
-				AntCore.entSpawnAlert[e] = nil
+				AntCore.typeSpawnAlert[enttype][e] = nil
 			end
 		end
-		if AntCore.typeSpawnAlert[enttype] then
-			for e,_ in pairs(AntCore.typeSpawnAlert[enttype]) do
-				if IsValid(e) then
-					e:Execute()
-				else
-					AntCore.typeSpawnAlert[enttype][e] = nil
-				end
-			end
-		end
-		AntCore.runByEntSpawn = 0
-		--AntCore.lastSpawnedEnt = nil may aswell keep it alive
-	end)
+	end
+	AntCore.runByEntSpawn = 0
+	--AntCore.lastSpawnedEnt = nil may aswell keep it alive
+end
+
+hook.Add("OnEntityCreated","antcore_onentitycreated", function(ent)
+	-- delay for initialization, also only create small parser function
+	timer.Simple(0, function() AntCore.entCreated(ent) end)
 end)
 
 hook.Remove("EntityRemoved","antcore_entityremoved")
@@ -491,7 +515,10 @@ hook.Add("EntityRemoved","antcore_entityremoved", function(ent)
 	
 	for e,_ in pairs(AntCore.entRemoveAlert) do --runOnEnt(n) chips
 		if IsValid(e) then
-			if e != ent then e:Execute() end --dont execute for itself removing
+			-- dont execute for itself removing
+			if e != ent and not e.context.data.last and not e.removing then
+				e:Execute()
+			end
 		else
 			AntCore.entRemoveAlert[e] = nil
 		end
@@ -499,7 +526,10 @@ hook.Add("EntityRemoved","antcore_entityremoved", function(ent)
 	if AntCore.typeRemoveAlert[enttype] then
 		for e,_ in pairs(AntCore.typeRemoveAlert[enttype]) do --runOnEntTypeSpawn(t,n) chips
 			if IsValid(e) then
-				if e != ent then e:Execute() end --dont execute for itself removing
+				-- dont execute for itself removing
+				if e != ent and not e.context.data.last and not e.removing then
+					e:Execute()
+				end
 			else
 				AntCore.typeRemoveAlert[enttype][e] = nil
 			end
@@ -508,7 +538,10 @@ hook.Add("EntityRemoved","antcore_entityremoved", function(ent)
 	if AntCore.entRemoveAlertByEnt[ent] then
 		for e,_ in pairs(AntCore.entRemoveAlertByEnt[ent]) do --runOn..(R) chips
 			if IsValid(e) then
-				e:Execute() --this one can execute for itself removing
+				-- dont execute for itself removing
+				if e != ent and not e.context.data.last and not e.removing then
+					e:Execute()
+				end
 			end
 			AntCore.entRemoveAlertByEnt[ent][e] = nil --the ent is being removed, clean up
 		end
@@ -696,22 +729,21 @@ e2function void entity:weapSetMaterial(string mat)
 	this:SetMaterial(mat)
 end
 
-__e2setcost(50)
+__e2setcost(2)
 -- Returns the closest entity to the center of a FOV
-e2function entity findClosestCentered(vector position, vector direction)
-	local angle = Vector(direction[1], direction[2], direction[3]):Angle()
+e2function entity findClosestCentered(vector pos, vector dir)
+	dir = Vector(dir[1], dir[2], dir[3]):GetNormalized()
 	local closest = nil
-	local minOffAngSum = math.huge
+	local maxDot = -math.huge
 	self.prf = self.prf + #self.data.findlist * 10
 	for _,ent in pairs(self.data.findlist) do
 		if IsValid(ent) then
-			local pos = ent:GetPos()
-			local offAngTo = Vector(pos.x-position.x, pos.y-position.y, pos.z-position.z):Angle() - angle
-			local offAngSum = math.abs(offAngTo.p) + math.abs(offAngTo.y) + math.abs(offAngTo.r)
-			
-			if offAngSum < minOffAngSum then
+			local pos2 = ent:GetPos()
+			local dir2 = Vector(pos2.x-pos.x, pos2.y-pos.y, pos2.z-pos.z):GetNormalized()
+			local dot = dir.x*dir2.x + dir.y*dir2.y + dir.z*dir2.z
+			if dot > maxDot then -- closest dot to 1 (cos 0 is 1) is closest to center angle
+				maxDot = dot
 				closest = ent
-				minOffAngSum = offAngSum
 			end
 		end
 	end
@@ -820,15 +852,15 @@ end
 
 __e2setcost(10)
 e2function entity spawnEgp(string model,vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	if (EGP.ConVars.AllowScreen:GetInt() == 0) then
 		self.player:ChatPrint("[EGP] The server has blocked EGP screens.")
-		return nil
+		return NULL
 	end
 	
 	local ent = AntCore.SpawnEntity("wire_egps","EGP",self,"gmod_wire_egp",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:Activate()
 	ent:SetEGPOwner( self.player )
@@ -836,15 +868,15 @@ e2function entity spawnEgp(string model,vector pos,angle ang,number freeze)
 end
 
 e2function entity spawnEgpHud(vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	if (EGP.ConVars.AllowHUD:GetInt() == 0) then
 		self.player:ChatPrint("[EGP] The server has blocked EGP HUDs.")
-		return nil
+		return NULL
 	end
 	
 	local ent = AntCore.SpawnEntity("wire_egps","EGP",self,"gmod_wire_egp_hud","models/bull/dynamicbutton.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:Activate()
 	ent:SetEGPOwner( self.player )
@@ -852,15 +884,15 @@ e2function entity spawnEgpHud(vector pos,angle ang,number freeze)
 end
 
 e2function entity spawnEgpEmitter(vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	if (EGP.ConVars.AllowEmitter:GetInt() == 0) then
 		self.player:ChatPrint("[EGP] The server has blocked EGP emitters.")
-		return
+		return NULL
 	end
 	
 	local ent = AntCore.SpawnEntity("wire_egps","EGP",self,"gmod_wire_egp_emitter","models/bull/dynamicbutton.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:Activate()
 	ent:SetEGPOwner( self.player )
@@ -868,10 +900,10 @@ e2function entity spawnEgpEmitter(vector pos,angle ang,number freeze)
 end
 
 e2function entity spawnWireUser(string model,vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 		
 	ent = AntCore.SpawnEntity("wire_users","wire user",self,"gmod_wire_user",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local range = 100
 	ent:Setup(range)
@@ -880,10 +912,10 @@ e2function entity spawnWireUser(string model,vector pos,angle ang,number freeze)
 end
 
 e2function entity spawnWireUser(string model,vector pos,angle ang,number freeze,number range)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 		
 	ent = AntCore.SpawnEntity("wire_users","wire user",self,"gmod_wire_user",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:Setup(range)
 	ent:Activate()
@@ -891,10 +923,10 @@ e2function entity spawnWireUser(string model,vector pos,angle ang,number freeze,
 end
 
 e2function entity spawnWireForcer(string model,vector pos,angle ang,number freeze)	
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	ent = AntCore.SpawnEntity("wire_forcers","wire forcer",self,"gmod_wire_forcer",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local force, length, showbeam, reaction = 50, 200, 1, 0
 	
@@ -904,10 +936,10 @@ e2function entity spawnWireForcer(string model,vector pos,angle ang,number freez
 end
 
 e2function entity spawnWireForcer(string model,vector pos,angle ang,number freeze,number force, number range, number beam, number reaction)	
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	ent = AntCore.SpawnEntity("wire_forcers","wire forcer",self,"gmod_wire_forcer",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:Setup(force, range, beam, reaction)
 	ent:Activate()
@@ -915,17 +947,17 @@ e2function entity spawnWireForcer(string model,vector pos,angle ang,number freez
 end
 
 e2function entity spawnExpression2(string model,vector pos,angle ang)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
-	if not AntCore.entities_spawn_e2chip:GetBool() then return nil end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
+	if not AntCore.entities_spawn_e2chip:GetBool() then return NULL end
 	
 	if IsValid(self.player) and (!self.player:CheckLimit("wire_expressions")) then
 		WireLib.AddNotify(self.player, "You've hit the expression 2 limit", NOTIFY_ERROR, 7, NOTIFYSOUND_ERROR1)
-		return nil
+		return NULL
 	end
 	
 	-- doesnt use spawnEntity
 	local ent = MakeWireExpression2(self.player, Vector(pos[1],pos[2],pos[3]), Angle(ang[1],ang[2],ang[3]), model)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	if IsValid(self.player) then self.player:AddCount( "wire_expressions", ent ) end
 	
@@ -949,10 +981,10 @@ e2function entity spawnExpression2(string model,vector pos,angle ang)
 end
 
 e2function entity spawnTextEntry(string model,vector pos,angle ang,number freeze,number disableuse)	
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 		
 	local ent = AntCore.SpawnEntity("wire_textentrys","text entry",self,"gmod_wire_textentry",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:SetPlayer(self.player)
 	ent:Setup(freeze,disableuse)
@@ -960,10 +992,10 @@ e2function entity spawnTextEntry(string model,vector pos,angle ang,number freeze
 end
 
 e2function entity spawnTextScreen(string model,vector pos,angle ang,number freeze)	
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_textscreens","text screen",self,"gmod_wire_textscreen",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local DefaultText, chrPerLine, halign, valign, tfont, fgcolor, bgcolor = "", 10, 1, 1, "Arial", Color(255,255,255), Color(0,0,0)
 	ent:Setup(DefaultText, chrPerLine, halign, valign, tfont, fgcolor, bgcolor)
@@ -972,10 +1004,10 @@ e2function entity spawnTextScreen(string model,vector pos,angle ang,number freez
 end
 
 e2function entity spawnTextScreen(string model,vector pos,angle ang,number freeze,number textsize)	
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_textscreens","text screen",self,"gmod_wire_textscreen",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local DefaultText, chrPerLine, halign, valign, tfont, fgcolor, bgcolor = "", 15-textsize, 1, 1, "Arial", Color(255,255,255), Color(0,0,0)
 	ent:Setup(DefaultText, chrPerLine, halign, valign, tfont, fgcolor, bgcolor)
@@ -984,10 +1016,10 @@ e2function entity spawnTextScreen(string model,vector pos,angle ang,number freez
 end
 
 e2function entity spawnButton(string model,vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_buttons","button",self,"gmod_wire_button",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local toggle, value_off, value_on, desc, entityout = false, 0, 1, "", true
 	ent:Setup(toggle, value_off, value_on, description, entityout)
@@ -996,10 +1028,10 @@ e2function entity spawnButton(string model,vector pos,angle ang,number freeze)
 end
 
 e2function entity spawnButton(string model,vector pos,angle ang,number freeze,number toggle, number on, number off)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 			
 	local ent = AntCore.SpawnEntity("wire_buttons","button",self,"gmod_wire_button",model,pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local desc, entityout = "", true
 	ent:Setup(toggle, off, on, description, entityout)
@@ -1008,18 +1040,18 @@ e2function entity spawnButton(string model,vector pos,angle ang,number freeze,nu
 end
 
 e2function entity spawnPodController(vector pos,angle ang,number freeze, entity pod)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_pods","pod controller",self,"gmod_wire_pod","models/jaanus/wiretool/wiretool_range.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	return ent
 end
 
 e2function entity spawnEyePod(vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_eyepods","eye pod",self,"gmod_wire_eyepod","models/jaanus/wiretool/wiretool_range.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local defaultzero, rateOfChange, minx, miny, maxx, maxy = 1, 1, 0, 0, 0, 0
 	ent:Setup(defaultzero, rateOfChange, minx, miny, maxx, maxy)
@@ -1028,10 +1060,10 @@ e2function entity spawnEyePod(vector pos,angle ang,number freeze)
 end
 
 e2function entity spawnEyePod(vector pos,angle ang,number freeze,number defaultzero, number cumulative, vector2 min, vector2 max)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_eyepods","eye pod",self,"gmod_wire_eyepod","models/jaanus/wiretool/wiretool_range.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	local defaultzero, rateOfChange = true
 	local rateOfChange = 0
@@ -1042,20 +1074,20 @@ e2function entity spawnEyePod(vector pos,angle ang,number freeze,number defaultz
 end
 
 e2function entity spawnCamController(vector pos,angle ang,number freeze,number parentLocal,number autoMove,number localMove,number allowZoom,number autoUnclip,number drawPlayer,number autoUnclip_IgnoreWater,number drawParent)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_cameracontrollers","cam controller",self,"gmod_wire_cameracontroller","models/jaanus/wiretool/wiretool_range.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	ent:Setup(parentLocal,autoMove,localMove,allowZoom,autoUnclip,drawPlayer,autoUnclip_IgnoreWater,drawParent)
 	return ent
 end
 
 e2function entity spawnCamController(vector pos,angle ang,number freeze)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	local ent = AntCore.SpawnEntity("wire_cameracontrollers","cam controller",self,"gmod_wire_cameracontroller","models/jaanus/wiretool/wiretool_range.mdl",pos,ang,freeze)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	-- default setup
 	local parentLocal = 1
@@ -1073,8 +1105,7 @@ end
 
 __e2setcost(20)
 e2function void entity:linkToPod(entity pod)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	if this.LinkEnt then this:LinkEnt(pod) end -- most wire ents use this
 	if this.PodLink then this:PodLink(pod) end -- eye pods use this
@@ -1250,7 +1281,7 @@ e2function entity spawnRTCam( vector pos, angle ang, number freeze)
 	-- grouped RTcam limit with cameras here deliberately
 	-- RT cams normally have no limit, this seems a bit nicer
 	local cam = AntCore.SpawnEntity("cameras","RT cam",self,"gmod_rtcameraprop","models/dav0r/camera.mdl",pos,ang,freeze)
-	if not IsValid( cam ) then return nil end
+	if not IsValid(cam) then return NULL end
 	
 	UpdateRenderTarget(cam)
 	return cam
@@ -1284,8 +1315,7 @@ end
 
 __e2setcost(3)
 e2function void entity:setVelocity(vector vel)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	local phys = this:GetPhysicsObject()
 	if IsValid( phys ) then
@@ -1295,8 +1325,7 @@ end
 
 __e2setcost(3)
 e2function void entity:setAngVel(angle angVel)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	local phys = this:GetPhysicsObject()
 	if IsValid( phys ) then
@@ -1306,8 +1335,7 @@ end
 
 __e2setcost(3)
 e2function void entity:addAngVel(angle angVel)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	local phys = this:GetPhysicsObject()
 	if IsValid( phys ) then
@@ -1317,83 +1345,97 @@ end
 
 __e2setcost(2)
 e2function void entity:keepUpright()
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	constraint.Keepupright(this,this:GetAngles(),0,999999) -- default context menu values
 end
 
 e2function void entity:keepUpright(angle ang)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	constraint.Keepupright(this,Angle(ang[1],ang[2],ang[3]),0,999999)
 end
 
 e2function void entity:keepUpright(angle ang, number bone, number angularLimit)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 
 	constraint.Keepupright(this,Angle(ang[1],ang[2],ang[3]),bone,angularLimit)
 end
 
 e2function void entity:setModelScale(number scale)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if this:GetClass() == "prop_ragdoll" then return end -- self explanatory	
 
 	scale = math.Clamp(scale,-50,50)
+	this.modelScale = Vector(scale,scale,scale) -- stored because e:GetModelScale errors
 	this:SetModelScale(scale, 0)
 end
 
 __e2setcost(5)
 e2function void entity:setModelScale(number scale, number deltaTime)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if this:GetClass() == "prop_ragdoll" then return end -- self explanatory	
 	
 	scale = math.Clamp(scale,-50,50)
 	this:SetModelScale(scale, deltaTime)
 end
 
-e2function void entity:setPhysScale(number scale)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
-	if not IsValid(this:GetPhysicsObject()) then return end
-	if this:GetClass() == "prop_ragdoll" then return end -- self explanatory	
-	
-	scale = math.Clamp(scale,AntCore.physscale_min:GetFloat(),AntCore.physscale_max:GetFloat())
-	this.physScale = Vector(scale,scale,scale) -- for getter
-	
-	-- special built in method for single all-3 axises
-	this:SetModelScale(scale)
-	this:Activate()
-	
-	-- if the entity is large and inside the world then it can cause crashes
-	-- this is just a small defense against that
-	-- note: they can reenable the solidness of it
-	-- note: doesn't work perfectly
-	if this:GetPhysicsObject():IsPenetrating() then
-		--print("disabling ent solidity")
-		this:SetSolid(SOLID_NONE)
+AntCore.setPhysScale = function( ent, scale )
+
+	ent:PhysicsInit( SOLID_VPHYSICS )
+
+	local physobj = ent:GetPhysicsObject()
+
+	if ( not IsValid( physobj ) ) then return false end
+
+	local physmesh = physobj:GetMeshConvexes()
+
+	if ( not istable( physmesh ) ) or ( #physmesh < 1 ) then return false end
+
+	for convexkey, convex in pairs( physmesh ) do
+
+		for poskey, postab in pairs( convex ) do
+
+			convex[ poskey ] = postab.pos * scale
+
+		end
+
 	end
+
+	ent:PhysicsInitMultiConvex( physmesh )
+
+	ent:EnableCustomCollisions( true )
+
+	return IsValid( ent:GetPhysicsObject() )
+
+end
+
+e2function void entity:setPhysScale(number scale)
+	if not IsValid(this) or not isOwner(self, this) or not IsValid(this:GetPhysicsObject()) then return end
+	local scale = math.Clamp(scale,AntCore.physscale_min:GetFloat(),AntCore.physscale_max:GetFloat())
+	this.physScale = Vector(scale,scale,scale) -- for getter
+	AntCore.setPhysScale(this, this.physScale)
 end
 
 e2function vector entity:getPhysScale()
-	if not IsValid(this) then return end
+	if not IsValid(this) then return Vector(0,0,0) end
 	
-	if this.physScale then return this.physScale end
-	return Vector(1,1,1)
+	local advMods = this:GetTable()['advr'] -- advanced resizer mods
+	if advMods then return Vector(advMods[1],advMods[2],advMods[3]) end
+	
+	return this.physScale or Vector(1,1,1)
 end
 
 
 
 __e2setcost(2)
 e2function vector entity:getModelScale()
-	if not IsValid(this) then return end
-	-- note: maybe only allow checking of holos if you own them
-	if this.modelScale then return this.modelScale end
-	local scalenum = this:getModelScale() -- done by e:setModelScale(N)
-	return Vector(scalenum,scalenum,scalenum)
+	if not IsValid(this) then return Vector(0,0,0) end
+	
+	local advMods = this:GetTable()['advr'] -- advanced resizer mods
+	if advMods then return Vector(advMods[4],advMods[5],advMods[6]) end
+	
+	-- e:GetModelScale errors
+	return this.modelScale and this.modelScale or Vector(1,1,1)
 end
 
 e2function angle entity:getModelAngle()
@@ -1453,41 +1495,20 @@ function AntCore.ScaleMesh(this, scale)
 	AntCore.SetMesh(this, oldmesh, nextmesh, this:GetPhysicsObject():GetMass())
 end
 
--- disabled for now due to crashing
---[[__e2setcost(15)
-e2function void entity:setPhysScale(vector scale)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
-	if not IsValid(this:GetPhysicsObject()) then return end
-	
-	-- for getter function
-	this.physScale = Vector(math.Clamp(scale[1],-50,50), math.Clamp(scale[2],-50,50), math.Clamp(scale[3],-50,50))
-	
-	AntCore.ScaleMesh(this, this.physScale)
-end]]
-
 __e2setcost(10)
 e2function void entity:resetPhysics()
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	-- resets the physics based on the current model
 	this:PhysicsInit(SOLID_VPHYSICS)
 end
 
-__e2setcost(3)
-e2function vector entity:getPhysScale()
-	if not IsValid(this) then return end
-	if this.meshScale then return this.meshScale end
-end
-
 util.AddNetworkString("antcore_editmodel");
 
 __e2setcost(10)
 e2function void entity:editModel(vector scale, angle ang)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	-- just for get functions
 	this.modelScale = Vector(math.Clamp(scale[1],-50,50), math.Clamp(scale[2],-50,50), math.Clamp(scale[3],-50,50))
@@ -1508,8 +1529,7 @@ end
 
 __e2setcost(5)
 e2function void entity:setModelScale(vector scale)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	this.modelScale = Vector(math.Clamp(scale[1],-50,50), math.Clamp(scale[2],-50,50), math.Clamp(scale[3],-50,50))
 	
@@ -1523,8 +1543,7 @@ end
 
 __e2setcost(5)
 e2function void entity:setModelAngle(angle ang)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	this.modelAngle = Angle(ang[1],ang[2],ang[3])
 	
@@ -1554,8 +1573,7 @@ end
 
 __e2setcost(5)
 e2function void entity:makeSpherical(number radius)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	--local boxsize = this:OBBMaxs() - this:OBBMins()
@@ -1565,8 +1583,7 @@ end
 
 __e2setcost(5)
 e2function void entity:makeSpherical()
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	local boxsize = this:OBBMaxs()-this:OBBMins()
@@ -1576,8 +1593,7 @@ e2function void entity:makeSpherical()
 end
 
 e2function void entity:makeBoxical(vector min, vector max)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	local boxradius = (this:OBBMaxs() - this:OBBMins()) / 2
@@ -1599,10 +1615,8 @@ e2function void entity:makeBoxical(vector min, vector max)
 end
 
 e2function void entity:makeBoxical()
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
-	
 	this:PhysicsInitBox(this:OBBMins(),this:OBBMaxs())
 end
 
@@ -1639,29 +1653,25 @@ end
 
 __e2setcost(3)
 e2function void entity:setMaterialScale(vector scale)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	AntCore.scaleMaterial(this, this:GetMaterial(), 0, 0, scale[1], scale[2])
 end
 
 e2function void entity:setMaterialScale(vector2 scale)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	AntCore.scaleMaterial(this, this:GetMaterial(), 0, 0, scale[1], scale[2])
 end
 
 e2function void entity:setMaterialScale(vector scale, vector offset)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	AntCore.scaleMaterial(this, this:GetMaterial(), offset[1], offset[2], scale[1], scale[2])
 end
 
 e2function void entity:setMaterialScale(vector2 scale, vector2 offset)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	
 	AntCore.scaleMaterial(this, this:GetMaterial(), offset[1], offset[2], scale[1], scale[2])
 end
@@ -1689,7 +1699,7 @@ end
 
 e2function void pauseTimer(string name)
 	if self.data['timer'].timers[name] then
-		return timer.Pause("e2_" .. self.data['timer'].timerid .. "_" .. name)
+		timer.Pause("e2_" .. self.data['timer'].timerid .. "_" .. name)
 	end
 end
 
@@ -1701,8 +1711,7 @@ end
 
 __e2setcost(2)
 e2function void entity:setBouyancy(number ratio)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	ratio = math.Clamp(ratio, 0, 1)
@@ -1718,12 +1727,12 @@ for k,v in pairs( wire_expression_types ) do
 		local name = k
 		local id = v[1]
 
-		__e2setcost(10)
+		__e2setcost(3)
 		-- t:GetIndex(obj)
 		registerFunction( "getIndex","t:"..id,"s",function(self,args)
 			local op1, op2 = args[2], args[3]
 			local tab, value = op1[1](self,op1), op2[1](self,op2)
-			self.prf = self.prf + #tab.s / 3
+			self.prf = self.prf + #tab.s / 5 -- better cpu than counting loops, but higher ops
 			for k,v in pairs(tab.s) do
 				if v == value then return k end
 			end
@@ -1734,7 +1743,7 @@ for k,v in pairs( wire_expression_types ) do
 		registerFunction( "getIndexNum","t:"..id,"n",function(self,args)
 			local op1, op2 = args[2], args[3]
 			local tab, value = op1[1](self,op1), op2[1](self,op2)
-			self.prf = self.prf + #tab.n / 3
+			self.prf = self.prf + #tab.n / 5
 			for k,v in pairs(tab.n) do
 				if v == value then return k end
 			end
@@ -1745,26 +1754,11 @@ for k,v in pairs( wire_expression_types ) do
 		registerFunction( "getIndex","r:"..id,"n",function(self,args)
 			local op1, op2 = args[2], args[3]
 			local array, value = op1[1](self,op1), op2[1](self,op2)
-			self.prf = self.prf + #array / 3
+			self.prf = self.prf + #array / 5
 			for k,v in pairs(array) do
 				if v == value then return k end
 			end
 			return 0
-		end)
-		
-		__e2setcost(1)
-		-- T or(obj,obj)
-		registerFunction( "or",id..id,id,function(self,args)
-			local op1, op2 = args[2], args[3]
-			local obj1, obj2 = op1[1](self,op1), op2[1](self,op2)
-			if IsValid(obj) then return obj1 else return obj2 end
-		end)
-		
-		-- T or(obj,obj,obj)
-		registerFunction( "or",id..id..id,id,function(self,args)
-			local op1, op2, op3 = args[2], args[3], args[4]
-			local obj1, obj2, obj3 = op1[1](self,op1), op2[1](self,op2), op3[1](self,op3)
-			if IsValid(obj) then return obj1 elseif IsValid(obj2) then return obj2 else return obj3 end
 		end)
 end
 
@@ -1778,7 +1772,7 @@ function AntCore.valid(value)
 	return IsValid(value)
 end
 
-__e2setcost(50)
+__e2setcost(5)
 e2function array array:clean()
 	local tmp = {}
 	tmp.size = 0
@@ -1787,13 +1781,13 @@ e2function array array:clean()
 			tmp[k] = v
 		end
 	end
-	self.prf = self.prf + #this / 3
+	self.prf = self.prf + #this / 5 -- better cpu than counting but higher ops
 	return tmp
 end
 
 -- note, missing types lists
 e2function table table:clean()
-	local ret = table.AntCore.copy(this)
+	local ret = {}
 	ret.size = 0
 	ret.n = {}
 	ret.s = {}
@@ -1814,7 +1808,7 @@ e2function table table:clean()
 			--ret.ntypes[k] = typeids[k]
 		end
 	end
-	self.prf = self.prf + this.size * 2 / 3 -- iterates twice
+	self.prf = self.prf + this.size * 2 / 5 -- iterates twice
 	return ret
 end
 
@@ -1888,16 +1882,14 @@ e2function number entity:isPenetrating()
 end
 
 e2function void entity:setDrag(number drag)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	this:GetPhysicsObject():SetDragCoefficient(drag)
 end
 
 e2function void entity:enableDrag(number enabled)
-	if not IsValid(this) then return end
-	if not isOwner(self, this) then return end
+	if not IsValid(this) or not isOwner(self, this) then return end
 	if not IsValid(this:GetPhysicsObject()) then return end
 	
 	this:GetPhysicsObject():EnableDrag(enabled ~= 0)
@@ -1950,6 +1942,29 @@ e2function void entity:ejectPod(vector pos)
 end
 
 __e2setcost(5)
+e2function void entity:ejectPod(angle ang)
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
+	
+	local ply = this:GetDriver()
+	if IsValid(ply) then
+		ply:ExitVehicle()
+		ply:SetEyeAngles(Angle(ang[1],ang[2],ang[3]))
+	end
+end
+
+__e2setcost(5)
+e2function void entity:ejectPod(vector pos, angle ang)
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
+	
+	local ply = this:GetDriver()
+	if IsValid(ply) then
+		ply:ExitVehicle()
+		ply:SetPos(Vector(pos[1],pos[2],pos[3]))
+		ply:SetEyeAngles(Angle(ang[1],ang[2],ang[3]))
+	end
+end
+
+__e2setcost(5)
 e2function void entity:ejectPodTemp(vector pos)
 	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
 	
@@ -1958,6 +1973,31 @@ e2function void entity:ejectPodTemp(vector pos)
 		this.tempEjectedDriver = ply
 		ply:ExitVehicle()
 		ply:SetPos(Vector(pos[1],pos[2],pos[3]))
+	end
+end
+
+__e2setcost(5)
+e2function void entity:ejectPodTemp(vector pos, angle ang)
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
+	
+	local ply = this:GetDriver()
+	if IsValid(ply) then
+		this.tempEjectedDriver = ply
+		ply:ExitVehicle()
+		ply:SetPos(Vector(pos[1],pos[2],pos[3]))
+		ply:SetEyeAngles(Angle(ang[1],ang[2],ang[3]))
+	end
+end
+
+__e2setcost(5)
+e2function void entity:ejectPodTemp(angle ang)
+	if not IsValid(this) or not isOwner(self, this) or not this:IsVehicle() then return end
+	
+	local ply = this:GetDriver()
+	if IsValid(ply) then
+		this.tempEjectedDriver = ply
+		ply:ExitVehicle()
+		ply:SetEyeAngles(Angle(ang[1],ang[2],ang[3]))
 	end
 end
 
@@ -2163,36 +2203,40 @@ e2function void entity:removeHull()
 	--GravHull.UpdateHull(this)	
 end
 
--- note to self: including this in both "preexecute" and "postexecute"
--- makes it run faster (too fast??) and doesnt cosmetically show actual ops
--- including only in preexecute seems best but not perfect
+
+AntCore.e2_softquota = GetConVar("wire_expression2_unlimited"):GetBool() and 1000000 or GetConVar("wire_expression2_quotasoft"):GetInt()
+AntCore.e2_hardquota = GetConVar("wire_expression2_unlimited"):GetBool() and 1000000 or GetConVar("wire_expression2_quotahard"):GetInt()
+AntCore.e2_tickquota = GetConVar("wire_expression2_unlimited"):GetBool() and 100000 or GetConVar("wire_expression2_quotatick"):GetInt()
+
 registerCallback("preexecute", function(self)
-	if self.data.extraQuota and self.data.extraQuota >= 1 then -- this e2 has extra quota
-		self.prfcount = self.prfcount / (self.data.extraQuota + 1)
-		self.prf = self.prf /  (self.data.extraQuota + 1)
-		--print("extra quota: "..self.data.extraQuota)
+	if self.data.processorCount and self.data.processorCount >= 1 then -- this e2 has extra quota
+		-- arbitrary equation which seems to work
+		self.prf = self.prf - e2_tickquota/5.3*self.data.processorCount + 1
 	end
 end)
---[[registerCallback("postexecute", function(self)
-	if self.data.extraQuota and self.data.extraQuota >= 1 then -- this e2 has extra quota
-		self.prfcount = self.prfcount / (self.data.extraQuota + 1)
-		self.prf = self.prf /  (self.data.extraQuota + 1)
+
+registerCallback("postexecute", function(self)
+	if self.data.processorCount and self.data.processorCount >= 1 then -- this e2 has extra quota
+		-- keep the ops from going negative
+		self.prfbench = math.max(0, self.prfbench)
+		self.prf = math.max(0, self.prf)
 	end
-end)]]
+end)
+
 registerCallback('construct', function(self) -- e2 starting
 	if self.entity.masterChip then
 		-- someone has uploaded code into a slave processor, disconnect it
 		local master = self.entity.masterChip
 		master.data.extraProcessors[self] = nil
-		master.data.extraQuota = master.data.extraQuota - 1
-		
+		master.data.processorCount = math.max(0,master.data.processorCount - 1)
+				
 		self.entity.masterChip = nil
 	end
 end)
 
 __e2setcost(10)
 e2function entity spawnProcessor(vector pos, angle ang)
-	if not AntCore.wirespawn_enabled:GetBool() then return end
+	if not AntCore.wirespawn_enabled:GetBool() then return NULL end
 	
 	if IsValid(self.player) and (!self.player:CheckLimit("wire_expressions")) then
 		WireLib.AddNotify(self.player, "You've hit the expression 2 limit", NOTIFY_ERROR, 7, NOTIFYSOUND_ERROR1)
@@ -2200,7 +2244,7 @@ e2function entity spawnProcessor(vector pos, angle ang)
 	end
 	
 	-- processor quota used for this chip
-	if self.data.extraQuota and self.data.extraQuota >= AntCore.processor_max:GetInt() then
+	if self.data.processorCount and self.data.processorCount >= AntCore.processor_max:GetInt() then
 		return nil
 	end
 	
@@ -2208,17 +2252,17 @@ e2function entity spawnProcessor(vector pos, angle ang)
 	--local model = self.entity:GetModel() or "models/beer/wiremod/gate_e2.mdl"
 	local model = "models/beer/wiremod/gate_e2.mdl"
 	local ent = MakeWireExpression2(self.player, Vector(pos[1],pos[2],pos[3]), Angle(ang[1],ang[2],ang[3]), model)
-	if not IsValid(ent) then return nil end
+	if not IsValid(ent) then return NULL end
 	
 	--WireLib.Expression2Upload(self.player, ent, ". . . . . . ")
-	local code = "@name processor\n#if modify this, it will disconnect from the master"
-	ent:Setup( code, {}, nil, nil, "antcore_spawnprocessor" )
+	local code = "@name processor\n#if you modify this, it will disconnect from the master"
+	ent:Setup(code, {}, nil, nil, "antcore_spawnprocessor")
 	--ent:SetColor(Color(255, 255, 255, 255)) -- get rid of the default e2 red
 	ent.masterChip = self
 	
-	if IsValid(self.player) then self.player:AddCount( "wire_expressions", ent ) end
+	if IsValid(self.player) then self.player:AddCount("wire_expressions", ent) end
 	
-	self.player:AddCleanup( "wire_expression2", ent )
+	self.player:AddCleanup("wire_expression2", ent)
 	
 	--[[if self.data.propSpawnUndo then
 		undo.Create( "wire_expression2" )
@@ -2227,17 +2271,17 @@ e2function entity spawnProcessor(vector pos, angle ang)
 		undo.Finish()
 	end]]
 	
-	self.data.spawnedProps[ ent ] = false -- always undo with master
+	self.data.spawnedProps[ent] = false -- always undo with master
 	
 	self.data.extraProcessors = self.data.extraProcessors or {}
 	self.data.extraProcessors[ent] = true
-	self.data.extraQuota = (self.data.extraQuota or 0) + 1
+	self.data.processorCount = (self.data.processorCount or 0) + 1
 	
 	ent:CallOnRemove( "wire_expression2_antcore_e2_remove",
 		function(ent)
 			self.data.spawnedProps[ent] = nil
 			self.data.extraProcessors[ent] = nil
-			self.data.extraQuota = self.data.extraQuota - 1
+			self.data.processorCount = math.max(0,self.data.processorCount - 1)
 		end
 	)
 	
@@ -2247,8 +2291,11 @@ end
 __e2setcost(1)
 e2function number entity:processorCount()
 	if !IsValid(this) or !this.context or !this.context.data then return 0 end
-	if !this.context.data.extraQuota then return 0 end
-	return this.context.data.extraQuota
+	return this.context.data.processorCount or 0
+end
+
+e2function number processorCount()
+	return self.data.processorCount or 0
 end
 
 __e2setcost(1)
@@ -2276,11 +2323,19 @@ if PropCore then -- extend some propcore functions if propcore is installed
 	end
 	end
 	
-	-- TODO: fix this
 	if PropCore.ValidSpawn then
-	print("antcore: zzzzzzzzzzzzzz")
 	AntCore.defaultValidSpawn = PropCore.ValidSpawn
-	PropCore.ValidSpawn = function(self) return true end -- this function is disabled
+	PropCore.ValidSpawn = function() return true end -- disabled so propcore doesnt use internally
+	
+	-- forcibly override propcore's propCanCreate function
+	__e2setcost(2)
+	registerFunction( "propCanCreate","","n",function(self,args)
+		if self.data.propSpawnASync then
+			if AntCore.getCanOccur(self.player,"propspawn_async",AntCore.propspawn_async_maxpersec:GetInt()) then return 1 end
+		end
+		if AntCore.defaultValidSpawn() then return 1 end
+		return 0
+	end)
 	end
 	
 	if PropCore.PhysManipulate then
@@ -2307,7 +2362,7 @@ if PropCore then -- extend some propcore functions if propcore is installed
 		elseif !AntCore.getCanOccur(self.player,"propspawn_async",AntCore.propspawn_async_maxpersec:GetInt()) then
 			return nil
 		end
-		
+				
 		local prop = AntCore.defaultCreateProp(self,model,pos,angles,freeze,isVehicle)
 		if !IsValid(prop) then return nil end
 		AntCore.setOccur(self.player, "propspawn_async") -- count the spawn occurance in both forms (async and non-async)
@@ -2338,12 +2393,177 @@ if PropCore then -- extend some propcore functions if propcore is installed
 
 		return prop
 	end
+	
 	end
 end
 end)
 
 __e2setcost(1)
 e2function void propSpawnASync(number enable)
-	if enable == 0 then self.data.propSpawnASync = nil return end
-	self.data.propSpawnASync = true
+	if enable then self.data.propSpawnASync = true else self.data.propSpawnASync = nil end
 end
+
+__e2setcost(2)
+e2function number change(number value)
+	local chg = self.data.changed
+
+	if chg[args] then
+		local chval = value - chg[args]
+		chg[args] = value
+		return chval
+	end
+
+	chg[args] = value
+	return value
+end
+
+__e2setcost(2)
+e2function vector change(vector value)
+	local chg = self.data.changed
+
+	local prev = chg[args]
+	if prev then
+		local chval = {value[1] - prev[1], value[2] - prev[2], value[3] - prev[3]}
+		chg[args] = value
+		return chval
+	end
+
+	chg[args] = value
+	return value
+end
+
+__e2setcost(2)
+e2function number change(angle value)
+	local chg = self.data.changed
+
+	local prev = chg[args]
+	if prev then
+		local chval = {value[1] - prev[1], value[2] - prev[2], value[3] - prev[3]}
+		chg[args] = value
+		return chval
+	end
+	
+	chg[args] = value
+	return value
+end
+
+__e2setcost(5)
+e2function void findSetResults(array entities)
+	self.data.findlist = entities
+end
+
+__e2setcost(3)
+e2function void findAddEntity(entity ent)
+	self.data.findlist[#self.data.findlist+1] = ent
+end
+
+__e2setcost(1)
+e2function number findGetCount()
+	return #self.data.findlist
+end
+
+-- theres a possibility for error but it should be ok
+AntCore.numConnected = player.GetCount()
+AntCore.nameConnected = ""
+hook.Add("PlayerConnect", "antcore_connect", function(name, ip)
+	AntCore.numConnected = AntCore.numConnected + 1
+	AntCore.nameConnected = name
+	if !timer.Exists("antcore_resetconn") then timer.Create("antcore_resetconn", 1000, 1, function() AntCore.numConnected = player.GetCount() end) end -- fix (a bit) numConnected getting out of sync
+end)
+hook.Add("PlayerDisconnected", "antcore_disconnect", function(ply)
+	AntCore.numConnected = math.max(player.GetCount(), AntCore.numConnected - 1)
+end)
+
+__e2setcost(1)
+e2function number numConnected()
+	return AntCore.numConnected
+end
+
+e2function string connectingName()
+	return AntCore.nameConnected
+end
+
+function AntCore.perf(self)
+	if self.prf >= self.data.autoPerfLimit then return false end
+	if self.prf + self.prfcount >= self.data.autoPerfHardLimit then return false end
+	return self.prf < self.data.autoPerfSoftLimit
+end
+
+function AntCore.autoPerfExecute(self)
+	if AntCore.perf(self.context) then
+		self.defaultExecute(self)
+	end
+end
+
+__e2setcost(5)
+e2function void autoPerf(number enable)
+	if enable == 0 then
+		if self.entity.autoPerf then
+			self.entity.autoPerf = nil -- store on entity so it persists through reset
+			self.entity.Execute = self.entity.defaultExecute
+			self.entity.defaultExecute = nil -- small cleanup
+		end
+	elseif !self.entity.autoPerf then
+		self.entity.autoPerf = true
+		self.entity.defaultExecute = self.entity.Execute
+		self.entity.Execute = AntCore.autoPerfExecute -- override the e2's execute
+		self.data.autoPerfLimit = e2_tickquota*0.95-200 -- values are from perf()'s logic
+		self.data.autoPerfHardLimit = e2_hardquota
+		self.data.autoPerfSoftLimit = e2_softquota*2
+	end
+end
+
+e2function void autoPerf(number enable, number n)
+	if enable == 0 then
+		if self.entity.autoPerf then
+			self.entity.autoPerf = nil
+			self.entity.Execute = self.entity.defaultExecute
+			self.entity.defaultExecute = nil
+		end
+	elseif !self.entity.autoPerf then
+		n = math.Clamp(n, 0, 100)
+		self.entity.autoPerf = true
+		self.entity.defaultExecute = self.entity.Execute
+		self.entity.Execute = AntCore.autoPerfExecute -- override the e2's execute
+		self.data.autoPerfLimit = e2_tickquota*0.95-200*n/100
+		self.data.autoPerfHardLimit = e2_hardquota*n/100
+		self.data.autoPerfSoftLimit = e2_softquota*2*n/100
+	end
+end
+
+registerCallback("construct", function(self)
+	-- disable autoperf if its enabled, it means the chip was reset
+	if self.entity.autoPerf then
+		self.entity.autoPerf = nil
+		self.entity.Execute = self.entity.defaultExecute
+		self.entity.defaultExecute = nil
+	end
+end)
+
+__e2setcost(1)
+e2function void entity:setCollisionGroup(string group)
+	if not IsValid(this) or not isOwner(self, this) or not IsValid(this:GetPhysicsObject()) then return end
+	this.ColGroup = group
+	this:CollisionRulesChanged()
+end
+
+e2function void entity:removeCollisionGroup()
+	if not IsValid(this) or not isOwner(self, this) or not IsValid(this:GetPhysicsObject()) then return end
+	this.ColGroup = nil
+	this:CollisionRulesChanged()
+end
+
+-- empty string is no group
+e2function string entity:getCollisionGroup()
+	return IsValid(this) and this.ColGroup or ""
+end
+
+-- compute collision group collisions
+hook.Add("ShouldCollide", "antcore_shouldcollide", function(ent1, ent2)
+	-- only intervene physics if there's a valid collision group and the two are not equal
+	-- otherwise DON'T do anything here
+	if ent1:IsWorld() or ent2:IsWorld() then return end -- ignore world
+	if (ent1.ColGroup and ent1.ColGroup != "" or ent2.ColGroup and ent2.ColGroup != "") and ent1.ColGroup != ent2.ColGroup then
+		return false
+	end
+end)
