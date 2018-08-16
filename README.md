@@ -53,9 +53,10 @@ Server sided console variables for settings.
 | "antcore_bolt_max" |  | 32 |
 | "antcore_combine_persecond" |  | 1 |
 | "antcore_dropweapon_persecond" |  | 5 |
-| "antcore_processor_max" |  | 8 |
+| "antcore_processor_max" | The maximum amount of processors that a single E2 can spawn. | 8 |
 | "antcore_propspawn_async_enabled" | Enables/disables propSpawnASync | 1 |
-| "antcore_propspawn_async_maxpersec" |  | 60 |
+| "antcore_propspawn_async_maxpersec" | The maximum props that can be spawned per second by a chip with propSpawnASync enabled. | 60 |
+| "antcore_propspawn_perplayer" | Override's prop core's propSpawn cooldown, makes it per player instead of global/shared. | 1 |
 
 
 # Functions
