@@ -231,7 +231,7 @@ Some functions that allow the use of other existing Garry's Mod addons. If the a
 # Special
 | Function  | Description |
 | ------------- | ------------- |
-| E = spawnProcessor(...) | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quota of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. |
+| E = spawnProcessor(...) | Spawns a slave E2 entity that can't be used on its own. It sacrifices its tick quota to increase the quota of the master E2 that spawned it. If any code is uploaded into a slave it will be disconnected from the master. The slave processors get a portion of the OPS for cosmetic purposes, but their value isn't accurate. opcounter() and maxquota() work with processors. |
 | processorCount() | Returns the amount of active processors that this chip has. |
 
 # Experimental
@@ -239,4 +239,4 @@ These features are not entirely practical or useful, but may be improved or remo
 
 | Function  | Description |
 | ------------- | ------------- |
-| autoPerf(enable) autoPerf(enable,n) | Makes this chip completely immune to hitting its OPS quota (not internally) from events. If an event such as ds signals, or damage (damage core) would execute the chip beyond its ops quota, then the event will be completely ignored. Note that this also goes for timers, so external events can prevent timers from reoccuring. |
+| autoPerf(enable) autoPerf(enable,n) | Makes this chip immune to hitting its quota by an event (timer or runOn<Event>(1) style function). It can't prevent tick quota caused by a loop, tick quota occurs in one execution inside the code. |
